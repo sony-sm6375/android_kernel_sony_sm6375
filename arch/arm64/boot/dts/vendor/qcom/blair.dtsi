@@ -1001,6 +1001,9 @@
 		compatible = "qcom,pshold";
 		reg = <0x440b000 0x4>, <0x03d3000 0x4>;
 		reg-names = "pshold-base", "tcsr-boot-misc-detect";
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+		qcom,force-warm-reboot;
+#endif
 	};
 
 	pil_scm_pas {
