@@ -1,3 +1,8 @@
+/*
+ * NOTE: This file has been modified by Sony Corporation.
+ * Modifications are Copyright 2022 Sony Corporation,
+ * and licensed under the license of the file.
+ */
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
@@ -183,6 +188,7 @@ static bool is_input_present(struct step_chg_info *chip)
 	return false;
 }
 
+#if !defined(CONFIG_SOMC_CHARGER_EXTENSION)
 static int read_range_data_from_node(struct device_node *node,
 		const char *prop_str, struct range_data *ranges,
 		int max_threshold, u32 max_value)
@@ -254,6 +260,7 @@ clean:
 	memset(ranges, 0, tuples * sizeof(struct range_data));
 	return rc;
 }
+#endif
 
 static int step_chg_read_iio_prop(struct step_chg_info *chip,
 		enum iio_type type, int iio_chan, int *val)
@@ -283,6 +290,11 @@ static int step_chg_read_iio_prop(struct step_chg_info *chip,
 
 static int get_step_chg_jeita_setting_from_profile(struct step_chg_info *chip)
 {
+#if defined(CONFIG_SOMC_CHARGER_EXTENSION)
+	chip->sw_jeita_cfg_valid = false;
+	return -ENODATA;
+#endif
+#if !defined(CONFIG_SOMC_CHARGER_EXTENSION)
 	struct device_node *batt_node, *profile_node;
 	u32 max_fv_uv, max_fcc_ma;
 	const char *batt_type_str;
@@ -472,6 +484,7 @@ static int get_step_chg_jeita_setting_from_profile(struct step_chg_info *chip)
 	}
 
 	return rc;
+#endif
 }
 
 static void get_config_work(struct work_struct *work)

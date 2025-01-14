@@ -1,3 +1,8 @@
+/*
+ * NOTE: This file has been modified by Sony Corporation.
+ * Modifications are Copyright 2021 Sony Corporation,
+ * and licensed under the license of the file.
+ */
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Gadget Function Driver for Android USB accessories
@@ -871,7 +876,8 @@ static long acc_ioctl(struct file *fp, unsigned code, unsigned long value)
 	case ACCESSORY_IS_START_REQUESTED:
 		return dev->start_requested;
 	case ACCESSORY_GET_AUDIO_MODE:
-		return dev->audio_mode;
+		/* RID006975: Disable support for AOA v2 Audio due to Andorid CDD */
+		return 0;
 	}
 	if (!src)
 		return -EINVAL;
