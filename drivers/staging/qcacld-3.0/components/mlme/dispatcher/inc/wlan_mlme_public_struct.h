@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -262,7 +261,6 @@ enum roam_invoke_source_entity {
 struct mlme_roam_after_data_stall {
 	bool roam_invoke_in_progress;
 	enum roam_invoke_source_entity source;
-	struct qdf_mac_addr mac_addr;
 };
 
 /**
@@ -376,7 +374,6 @@ struct wlan_mlme_edca_params {
 	struct mlme_cfg_str etsi_acvo_b;
 
 	bool enable_edca_params;
-	bool enable_wmm_txop;
 	struct mlme_edca_ac_vo edca_ac_vo;
 	struct mlme_edca_ac_vi edca_ac_vi;
 	struct mlme_edca_ac_bk edca_ac_bk;
@@ -1188,21 +1185,6 @@ struct wlan_mlme_ratemask {
 	uint32_t higher32_2;
 };
 
-/**
- * enum mlme_cfg_frame_type  - frame type to configure mgmt hw tx retry count
- * @CFG_GO_NEGOTIATION_REQ_FRAME_TYPE: p2p go negotiation request fame
- * @CFG_P2P_INVITATION_REQ_FRAME_TYPE: p2p invitation request frame
- * @CFG_PROVISION_DISCOVERY_REQ_FRAME_TYPE: p2p provision discovery request
- */
-enum mlme_cfg_frame_type {
-	CFG_GO_NEGOTIATION_REQ_FRAME_TYPE = 0,
-	CFG_P2P_INVITATION_REQ_FRAME_TYPE = 1,
-	CFG_PROVISION_DISCOVERY_REQ_FRAME_TYPE = 2,
-	CFG_FRAME_TYPE_MAX,
-};
-
-#define MAX_MGMT_HW_TX_RETRY_COUNT 127
-
 /* struct wlan_mlme_generic - Generic CFG config items
  *
  * @band_capability: HW Band Capability - Both or 2.4G only or 5G only
@@ -1250,9 +1232,6 @@ enum mlme_cfg_frame_type {
  * @enabled_rf_test_mode: Enable/disable the RF test mode config
  * @monitor_mode_concurrency: Monitor mode concurrency supported
  * @ocv_support: FW supports OCV or not
- * @tx_retry_multiplier: TX xretry extension parameter
- * @mgmt_hw_tx_retry_count: MGMT HW tx retry count for frames
- * @std_6ghz_conn_policy: 6GHz standard connection policy
  */
 struct wlan_mlme_generic {
 	uint32_t band_capability;
@@ -1297,11 +1276,6 @@ struct wlan_mlme_generic {
 	bool enabled_rf_test_mode;
 	enum monitor_mode_concurrency monitor_mode_concurrency;
 	bool ocv_support;
-	uint32_t tx_retry_multiplier;
-	uint8_t mgmt_hw_tx_retry_count[CFG_FRAME_TYPE_MAX];
-#ifdef CONFIG_BAND_6GHZ
-	bool std_6ghz_conn_policy;
-#endif
 };
 
 /*
@@ -1612,7 +1586,6 @@ struct fw_scan_channels {
  * @mawc_roam_enabled:              Enable/Disable MAWC during roaming
  * @enable_fast_roam_in_concurrency:Enable LFR roaming on STA during concurrency
  * @vendor_btm_param:               Vendor WTC roam trigger parameters
- * @roam_rt_stats:                  Roam event stats vendor command parameters
  * @lfr3_roaming_offload:           Enable/disable roam offload feature
  * @lfr3_dual_sta_roaming_enabled:  Enable/Disable dual sta roaming offload
  * feature
@@ -1631,8 +1604,6 @@ struct fw_scan_channels {
  * vsie in Re(assoc) frame
  * @roam_trigger_bitmap:            Bitmap of roaming triggers.
  * @sta_roam_disable                STA roaming disabled by interfaces
- * @roam_high_rssi_delta: Delta change in high RSSI at which roam scan is
- * triggered in 2.4/5 GHz.
  * @early_stop_scan_enable:         Set early stop scan
  * @enable_5g_band_pref:            Enable preference for 5G from INI
  * @ese_enabled:                    Enable ESE feature
@@ -1679,7 +1650,6 @@ struct fw_scan_channels {
  * @roam_preauth_retry_count:       Configure the max number of preauth retry
  * @roam_preauth_no_ack_timeout:    Configure the no ack timeout period
  * @roam_rssi_diff:                 Enable roam based on rssi
- * @roam_rssi_diff_6ghz: RSSI diff value to be used for roaming to 6 GHz AP.
  * @roam_scan_offload_enabled:      Enable Roam Scan Offload
  * @neighbor_scan_timer_period:     Neighbor scan timer period
  * @neighbor_scan_min_timer_period: Min neighbor scan timer period
@@ -1728,19 +1698,12 @@ struct fw_scan_channels {
  * @saved_freq_list: Valid channel list
  * @sae_single_pmk_feature_enabled: Contains value of ini
  * sae_single_pmk_feature_enabled
- * @enable_ft_over_ds: Flag to enable/disable FT-over-DS
- * @roam_ho_delay_config: Roam HO delay value
- * @exclude_rm_partial_scan_freq: Exclude the channels in roam full scan that
- * are already scanned as part of partial scan.
- * @roam_full_scan_6ghz_on_disc: Include the 6 GHz channels in roam full scan
- * only on prior discovery of any 6 GHz support in the environment.
  */
 struct wlan_mlme_lfr_cfg {
 	bool mawc_roam_enabled;
 	bool enable_fast_roam_in_concurrency;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	struct wlan_cm_roam_vendor_btm_params vendor_btm_param;
-	struct wlan_cm_roam_rt_stats roam_rt_stats;
 	bool lfr3_roaming_offload;
 	bool lfr3_dual_sta_roaming_enabled;
 	bool enable_self_bss_roam;
@@ -1754,7 +1717,6 @@ struct wlan_mlme_lfr_cfg {
 	bool enable_roam_reason_vsie;
 	uint32_t roam_trigger_bitmap;
 	uint32_t sta_roam_disable;
-	uint8_t roam_high_rssi_delta;
 #endif
 	bool early_stop_scan_enable;
 	bool enable_5g_band_pref;
@@ -1771,8 +1733,8 @@ struct wlan_mlme_lfr_cfg {
 	uint8_t mawc_roam_rssi_low_adjust;
 	uint32_t roam_rssi_abs_threshold;
 	uint8_t rssi_threshold_offset_5g;
-	int8_t early_stop_scan_min_threshold;
-	int8_t early_stop_scan_max_threshold;
+	uint8_t early_stop_scan_min_threshold;
+	uint8_t early_stop_scan_max_threshold;
 	uint32_t roam_dense_traffic_threshold;
 	uint32_t roam_dense_rssi_thre_offset;
 	uint32_t roam_dense_min_aps;
@@ -1803,7 +1765,6 @@ struct wlan_mlme_lfr_cfg {
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
 	uint8_t roam_rssi_diff;
-	uint8_t roam_rssi_diff_6ghz;
 	uint8_t bg_rssi_threshold;
 	bool roam_scan_offload_enabled;
 	uint32_t neighbor_scan_timer_period;
@@ -1853,10 +1814,6 @@ struct wlan_mlme_lfr_cfg {
 #if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 	bool sae_single_pmk_feature_enabled;
 #endif
-	bool enable_ft_over_ds;
-	uint16_t roam_ho_delay_config;
-	uint8_t exclude_rm_partial_scan_freq;
-	uint8_t roam_full_scan_6ghz_on_disc;
 };
 
 /**
@@ -2174,7 +2131,6 @@ struct wlan_mlme_power {
  * @ap_link_monitor_timeout: AP link monitor timeout value
  * @ps_data_inactivity_timeout: PS data inactivity timeout
  * @wmi_wq_watchdog_timeout: timeout period for wmi watchdog bite
- * @sae_auth_failure_timeout: SAE authentication failure timeout
  */
 struct wlan_mlme_timeout {
 	uint32_t join_failure_timeout;
@@ -2190,7 +2146,6 @@ struct wlan_mlme_timeout {
 	uint32_t ap_link_monitor_timeout;
 	uint32_t ps_data_inactivity_timeout;
 	uint32_t wmi_wq_watchdog_timeout;
-	uint32_t sae_auth_failure_timeout;
 };
 
 /**
@@ -2399,34 +2354,6 @@ struct wlan_mlme_reg {
 	bool enable_nan_on_indoor_channels;
 };
 
-#define IOT_AGGR_INFO_MAX_NUM 32
-
-/**
- * struct wlan_iot_aggr - IOT related AGGR rule
- *
- * @oui: OUI for the rule
- * @oui_len: length of the OUI
- * @ampdu_sz: max aggregation size in no. of MPDUs
- * @amsdu_sz: max aggregation size in no. of MSDUs
- */
-struct wlan_iot_aggr {
-	uint8_t oui[OUI_LENGTH];
-	uint32_t oui_len;
-	uint32_t ampdu_sz;
-	uint32_t amsdu_sz;
-};
-
-/**
- * struct wlan_mlme_iot - IOT related CFG Items
- *
- * @aggr: aggr rules
- * @aggr_num: number of the configured aggr rules
- */
-struct wlan_mlme_iot {
-	struct wlan_iot_aggr aggr[IOT_AGGR_INFO_MAX_NUM];
-	uint32_t aggr_num;
-};
-
 /**
  * struct wlan_mlme_cfg - MLME config items
  * @chainmask_cfg: VHT chainmask related cfg items
@@ -2470,7 +2397,6 @@ struct wlan_mlme_iot {
  * @trig_score_delta: Roam score delta value for various roam triggers
  * @trig_min_rssi: Expected minimum RSSI value of candidate AP for
  * various roam triggers
- * @iot: IOT related CFG items
  */
 struct wlan_mlme_cfg {
 	struct wlan_mlme_chainmask chainmask_cfg;
@@ -2515,7 +2441,6 @@ struct wlan_mlme_cfg {
 	struct roam_trigger_score_delta trig_score_delta[NUM_OF_ROAM_TRIGGERS];
 	struct roam_trigger_min_rssi trig_min_rssi[NUM_OF_ROAM_MIN_RSSI];
 	struct wlan_mlme_ratemask ratemask_cfg;
-	struct wlan_mlme_iot iot;
 };
 
 enum pkt_origin {
@@ -2557,7 +2482,6 @@ struct wlan_mlme_sae_single_pmk {
  * @btm_rsp:            BTM response information
  * @roam_init_info:     Roam initial info
  * @roam_msg_info:      roam related message information
- * @roam_event_param:   Roam event notif params
  */
 struct mlme_roam_debug_info {
 	struct wmi_roam_trigger_info trigger;
@@ -2567,7 +2491,6 @@ struct mlme_roam_debug_info {
 	struct roam_btm_response_data btm_rsp;
 	struct roam_initial_data roam_init_info;
 	struct roam_msg_info roam_msg_info;
-	struct roam_event_rt_info roam_event_param;
 };
 
 /**

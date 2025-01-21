@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2013-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -75,21 +75,18 @@ extract_nan_event_rsp_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	}
 	nan_msg_hdr = (nan_msg_header_t *)event->data;
 
+	if (!wmi_service_enabled(wmi_handle, wmi_service_nan_dbs_support) &&
+	    !wmi_service_enabled(wmi_handle, wmi_service_nan_disable_support)) {
+		evt_params->evt_type = nan_event_id_generic_rsp;
+		return QDF_STATUS_SUCCESS;
+	}
+
 	switch (nan_msg_hdr->msg_id) {
 	case NAN_MSG_ID_ENABLE_RSP:
 		nan_evt_info = event->event_info;
 		if (!nan_evt_info) {
-			if (!wmi_service_enabled(wmi_handle,
-						 wmi_service_nan_dbs_support) &&
-			    !wmi_service_enabled(wmi_handle,
-						 wmi_service_nan_disable_support
-						 )) {
-				evt_params->evt_type = nan_event_id_generic_rsp;
-				break;
-			} else {
-				wmi_err("Fail: NAN enable rsp event info Null");
-				return QDF_STATUS_E_INVAL;
-			}
+			wmi_err("Fail: NAN enable rsp event info Null");
+			return QDF_STATUS_E_INVAL;
 		}
 		evt_params->evt_type = nan_event_id_enable_rsp;
 		evt_params->mac_id = nan_evt_info->mac_id;
@@ -696,7 +693,7 @@ static QDF_STATUS extract_ndp_initiator_rsp_tlv(wmi_unified_t wmi_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
-#define MAX_NAN_MSG_LEN                 400
+#define MAX_NAN_MSG_LEN                 200
 
 static QDF_STATUS extract_nan_msg_tlv(uint8_t *data,
 				      struct nan_dump_msg *msg)

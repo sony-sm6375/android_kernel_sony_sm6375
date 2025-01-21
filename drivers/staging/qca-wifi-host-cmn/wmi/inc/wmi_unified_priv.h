@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1016,9 +1015,6 @@ QDF_STATUS (*send_pdev_set_pcl_cmd)(wmi_unified_t wmi_handle,
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS (*send_vdev_set_pcl_cmd)(wmi_unified_t wmi_handle,
 				    struct set_pcl_cmd_params *params);
-
-QDF_STATUS (*send_roam_set_param_cmd)(wmi_unified_t wmi_handle,
-				      struct vdev_set_params *roam_param);
 #endif
 
 #ifdef WLAN_POLICY_MGR_ENABLE
@@ -1800,10 +1796,7 @@ QDF_STATUS (*extract_mib_stats)(wmi_unified_t wmi_handle, void *evt_buf,
 #endif
 
 QDF_STATUS (*extract_thermal_stats)(wmi_unified_t wmi_handle, void *evt_buf,
-	    uint32_t *temp, enum thermal_throttle_level *level,
-	    uint32_t *therm_throt_levels,
-	    struct thermal_throt_level_stats *tt_temp_range_stats_event,
-	    uint32_t *pdev_id);
+	uint32_t *temp, uint32_t *level, uint32_t *pdev_id);
 
 QDF_STATUS (*extract_thermal_level_stats)(wmi_unified_t wmi_handle,
 		void *evt_buf, uint8_t idx, uint32_t *levelcount,
@@ -2423,12 +2416,6 @@ QDF_STATUS (*send_dscp_tid_map_cmd)(wmi_unified_t wmi_handle,
 				     uint32_t *dscp_to_tid_map);
 #endif
 
-#ifdef THERMAL_STATS_SUPPORT
-QDF_STATUS (*send_get_thermal_stats_cmd)(wmi_unified_t wmi_handle,
-					 enum thermal_stats_request_type req,
-					 uint8_t temp_offset);
-#endif /* THERMAL_STATS_SUPPORT */
-
 QDF_STATUS (*send_pdev_get_pn_cmd)(wmi_unified_t wmi_handle,
 				   struct peer_request_pn_param *pn_params);
 QDF_STATUS (*extract_get_pn_data)(wmi_unified_t wmi_handle,
@@ -2654,7 +2641,6 @@ struct wmi_soc {
 	/* WMI service bitmap received from target */
 	uint32_t *wmi_service_bitmap;
 	uint32_t *wmi_ext_service_bitmap;
-	uint32_t wmi_ext2_service_bitmap_len;
 	uint32_t *wmi_ext2_service_bitmap;
 	uint32_t services[wmi_services_max];
 	uint16_t wmi_max_cmds;

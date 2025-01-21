@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -83,8 +82,6 @@ static QDF_STATUS p2p_scan_start(struct p2p_roc_context *roc_ctx)
 	struct wlan_objmgr_vdev *vdev;
 	struct p2p_soc_priv_obj *p2p_soc_obj = roc_ctx->p2p_soc_obj;
 	uint32_t go_num;
-	uint8_t ndp_num = 0, nan_disc_enabled_num = 0;
-	bool is_dbs;
 
 	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(
 			p2p_soc_obj->soc, roc_ctx->vdev_id,
@@ -124,65 +121,18 @@ static QDF_STATUS p2p_scan_start(struct p2p_roc_context *roc_ctx)
 	if (req->scan_req.dwell_time_passive < P2P_MAX_ROC_DURATION) {
 		go_num = policy_mgr_mode_specific_connection_count(
 				p2p_soc_obj->soc, PM_P2P_GO_MODE, NULL);
-		policy_mgr_mode_specific_num_active_sessions(p2p_soc_obj->soc,
-							     QDF_NDI_MODE,
-							     &ndp_num);
-		policy_mgr_mode_specific_num_active_sessions(p2p_soc_obj->soc,
-							     QDF_NAN_DISC_MODE,
-							     &nan_disc_enabled_num);
-
-		p2p_debug("present go number:%d, NDP number:%d, NAN number:%d",
-			  go_num, ndp_num, nan_disc_enabled_num);
-
-		is_dbs = policy_mgr_is_hw_dbs_capable(p2p_soc_obj->soc);
-
+		p2p_debug("present go number:%d", go_num);
 		if (go_num)
-		/* Add fixed 300ms extra ROC time instead of multiplying the
-		 * ROC duration by const value as this causes the ROC to be
-		 * upto 1.5 secs if GO is present. Firmware will advertize NOA
-		 * of 1.5 secs and if supplicant cancels ROC after 200 or 300ms
-		 * then firmware cannot cancel NOA. So when supplicant sends
-		 * next ROC it will be delayed as firmware already is running
-		 * previous NOA. This causes p2p find issues if GO is present.
-		 * So add fixed duration of 300ms and also cap max ROC to 600ms
-		 * when GO is present
-		 */
-			req->scan_req.dwell_time_passive +=
+			req->scan_req.dwell_time_passive *=
 					P2P_ROC_DURATION_MULTI_GO_PRESENT;
 		else
 			req->scan_req.dwell_time_passive *=
 					P2P_ROC_DURATION_MULTI_GO_ABSENT;
-		if (go_num && req->scan_req.dwell_time_passive >
-			   P2P_MAX_ROC_DURATION_GO_PRESENT) {
-			req->scan_req.dwell_time_passive =
-					P2P_MAX_ROC_DURATION_GO_PRESENT;
-		} else if (req->scan_req.dwell_time_passive >
-			   P2P_MAX_ROC_DURATION) {
-			req->scan_req.dwell_time_passive = P2P_MAX_ROC_DURATION;
-		}
-
 		/* this is to protect too huge value if some customers
 		 * give a higher value from supplicant
 		 */
-		if (ndp_num) {
-			if (is_dbs && req->scan_req.dwell_time_passive >
-			    P2P_MAX_ROC_DURATION_DBS_NDP_PRESENT)
-				req->scan_req.dwell_time_passive =
-					P2P_MAX_ROC_DURATION_DBS_NDP_PRESENT;
-			else if (!is_dbs && req->scan_req.dwell_time_passive >
-				 P2P_MAX_ROC_DURATION_NON_DBS_NDP_PRESENT)
-				req->scan_req.dwell_time_passive =
-					P2P_MAX_ROC_DURATION_NON_DBS_NDP_PRESENT;
-		} else if (nan_disc_enabled_num) {
-			if (is_dbs && req->scan_req.dwell_time_passive >
-			    P2P_MAX_ROC_DURATION_DBS_NAN_PRESENT)
-				req->scan_req.dwell_time_passive =
-					P2P_MAX_ROC_DURATION_DBS_NAN_PRESENT;
-			else if (!is_dbs && req->scan_req.dwell_time_passive >
-				 P2P_MAX_ROC_DURATION_NON_DBS_NAN_PRESENT)
-				req->scan_req.dwell_time_passive =
-					P2P_MAX_ROC_DURATION_NON_DBS_NAN_PRESENT;
-		}
+		if (req->scan_req.dwell_time_passive > P2P_MAX_ROC_DURATION)
+			req->scan_req.dwell_time_passive = P2P_MAX_ROC_DURATION;
 	}
 	p2p_debug("FW requested roc duration is:%d",
 		  req->scan_req.dwell_time_passive);

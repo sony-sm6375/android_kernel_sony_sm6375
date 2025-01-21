@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1090,7 +1089,7 @@ QDF_STATUS wma_process_tx_power_limits(WMA_HANDLE handle,
 	int32_t ret = 0;
 	uint32_t txpower_params2g = 0;
 	uint32_t txpower_params5g = 0;
-	struct pdev_params pdevparam = {};
+	struct pdev_params pdevparam;
 
 	if (!wma || !wma->wmi_handle) {
 		wma_err("WMA is closed, can not issue tx power limit");
@@ -1192,14 +1191,6 @@ static void wma_update_beacon_noa_ie(struct beacon_info *bcn,
 			 bcn->len);
 		buf = qdf_nbuf_data(bcn->buf);
 		bcn->noa_ie = buf + bcn->len;
-	}
-
-	if (bcn->len + sizeof(struct p2p_ie) + new_noa_sub_ie_len >
-	    SIR_MAX_BEACON_SIZE) {
-		wma_err("exceed max beacon length, bcn->len %d, new_noa_sub_ie_len %d, p2p len %u",
-			bcn->len, new_noa_sub_ie_len,
-			(uint32_t)sizeof(struct p2p_ie));
-		return;
 	}
 
 	bcn->noa_sub_ie_len = new_noa_sub_ie_len;
@@ -1455,7 +1446,7 @@ QDF_STATUS wma_set_idle_ps_config(void *wma_ptr, uint32_t idle_ps)
 {
 	int32_t ret;
 	tp_wma_handle wma = (tp_wma_handle) wma_ptr;
-	struct pdev_params pdevparam = {};
+	struct pdev_params pdevparam;
 
 	wma_debug("WMA Set Idle Ps Config [1:set 0:clear] val %d", idle_ps);
 

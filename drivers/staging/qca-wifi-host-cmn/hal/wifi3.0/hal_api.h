@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -456,7 +455,8 @@ static inline void hal_srng_write_address_32_mb(struct hal_soc *hal_soc,
 {
 	qdf_iowrite32(addr, value);
 }
-#elif defined(FEATURE_HAL_DELAYED_REG_WRITE)
+#elif defined(FEATURE_HAL_DELAYED_REG_WRITE) || \
+	defined(FEATURE_HAL_DELAYED_REG_WRITE_V2)
 static inline void hal_srng_write_address_32_mb(struct hal_soc *hal_soc,
 						struct hal_srng *srng,
 						void __iomem *addr,
@@ -778,7 +778,8 @@ static inline void hal_write32_mb_confirm_retry(struct hal_soc *hal_soc,
 }
 #endif /* GENERIC_SHADOW_REGISTER_ACCESS_ENABLE */
 
-#if defined(FEATURE_HAL_DELAYED_REG_WRITE)
+#if defined(FEATURE_HAL_DELAYED_REG_WRITE) || \
+	defined(FEATURE_HAL_DELAYED_REG_WRITE_V2)
 /**
  * hal_dump_reg_write_srng_stats() - dump SRNG reg write stats
  * @hal_soc: HAL soc handle
@@ -2416,15 +2417,6 @@ void hal_compute_reo_remap_ix2_ix3(hal_soc_handle_t hal_soc_hdl,
 
 	return hal_soc->ops->hal_compute_reo_remap_ix2_ix3(ring,
 					num_rings, remap1, remap2);
-}
-
-static inline
-void hal_compute_reo_remap_ix0(hal_soc_handle_t hal_soc_hdl, uint32_t *remap0)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	if (hal_soc->ops->hal_compute_reo_remap_ix0)
-		hal_soc->ops->hal_compute_reo_remap_ix0(remap0);
 }
 
 /**

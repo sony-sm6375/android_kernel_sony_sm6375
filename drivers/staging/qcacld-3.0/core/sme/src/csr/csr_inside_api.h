@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -337,7 +336,8 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(struct mac_context *mac,
 				    enum csr_cfgdot11mode csrDot11Mode);
 void csr_save_channel_power_for_band(struct mac_context *mac, bool fPopulate5GBand);
 void csr_apply_channel_power_info_to_fw(struct mac_context *mac,
-					struct csr_channel *pChannelList);
+					struct csr_channel *pChannelList,
+					uint8_t *countryCode);
 void csr_apply_power2_current(struct mac_context *mac);
 
 /* return a bool to indicate whether roaming completed or continue. */
@@ -561,15 +561,6 @@ bool csr_is_profile_wapi(struct csr_roam_profile *pProfile);
 void csr_get_vdev_type_nss(enum QDF_OPMODE dev_mode, uint8_t *nss_2g,
 			   uint8_t *nss_5g);
 
-/**
- * csr_send_set_ie  - Send Set IE request to lim
- * @type: Vdev type
- * @sub_type: Vdev sub type
- * @vdev_id: Vdev id
- *
- * Return: None
- */
-void csr_send_set_ie(uint8_t type, uint8_t sub_type, uint8_t vdev_id);
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 
 /* Security */
@@ -982,17 +973,6 @@ csr_get_bssdescr_from_scan_handle(tScanResultHandle result_handle,
 
 bool is_disconnect_pending(struct mac_context *mac_ctx,
 				   uint8_t sessionid);
-
-/**
- * is_any_other_vdev_connecting_disconnecting() - To check whether any other
- * vdev is in waiting for vdev operations (connect/disconnect or start/stop AP)
- * @mac_tx: mac context
- * @sessionid: session id
- *
- * Return true if disconnect is pending on any other vdev
- */
-bool is_any_other_vdev_connecting_disconnecting(struct mac_context *mac_ctx,
-						uint8_t sessionid);
 
 QDF_STATUS
 csr_roam_prepare_bss_config_from_profile(struct mac_context *mac_ctx,

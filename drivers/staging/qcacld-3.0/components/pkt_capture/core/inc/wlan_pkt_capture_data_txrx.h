@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021, 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,7 +29,6 @@
 
 #include "cdp_txrx_cmn_struct.h"
 #include <qdf_nbuf.h>
-#include <qdf_list.h>
 #ifndef WLAN_FEATURE_PKT_CAPTURE_V2
 #include <htt_internal.h>
 #endif
@@ -42,8 +40,6 @@
 #define IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN 0x0080
 #define IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN 0x0200
 #endif
-
-#define HAL_TX_PKT_TYPE_11B 1
 
 /**
  * pkt_capture_data_process_type - data pkt types to process
@@ -172,7 +168,6 @@ void pkt_capture_offload_deliver_indication_handler(
  * @dir: direction rx: 0 and tx: 1
  * @status: tx status
  * @tx_retry_cnt: tx retry count
- * @ppdu_id: ppdu_id of msdu
  */
 struct pkt_capture_tx_hdr_elem_t {
 	uint32_t timestamp;
@@ -191,18 +186,6 @@ struct pkt_capture_tx_hdr_elem_t {
 	uint8_t tx_retry_cnt;
 	uint16_t framectrl;
 	uint16_t seqno;
-	uint32_t ppdu_id;
-};
-
-/**
- * pkt_capture_ppdu_stats_q_node - node structure to be enqueued
- * in ppdu_stats_q
- * @node: list node
- * @buf: buffer data received from ppdu_stats
- */
-struct pkt_capture_ppdu_stats_q_node {
-	qdf_list_node_t node;
-	uint32_t buf[];
 };
 
 /**

@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -491,7 +490,7 @@ static bool scm_is_security_match(struct scan_filter *filter,
 	if (!filter->authmodeset)
 		return scm_match_any_security(filter, db_entry, security);
 
-	for (i = 0; i < WLAN_CRYPTO_AUTH_MAX && !match; i++) {
+	for (i = 0; i <= WLAN_CRYPTO_AUTH_MAX && !match; i++) {
 		if (!QDF_HAS_PARAM(filter->authmodeset, i))
 			continue;
 
@@ -717,18 +716,8 @@ bool scm_filter_match(struct wlan_objmgr_psoc *psoc,
 		}
 	}
 
-	if (!match && filter->num_of_channels) {
-		/*
-		 * Do not print if bssid/ssid is not present in filter to avoid
-		 * excessive prints (e.g RRM case where only freq list is
-		 * provided to get AP's in specific frequencies)
-		 */
-		if (filter->num_of_bssid || filter->num_of_ssid)
-			scm_debug(QDF_MAC_ADDR_FMT" : Ignore as AP's freq %d is not in freq list",
-				  QDF_MAC_ADDR_REF(db_entry->bssid.bytes),
-				  db_entry->channel.chan_freq);
+	if (!match && filter->num_of_channels)
 		return false;
-	}
 
 	if (filter->rrm_measurement_filter)
 		return true;

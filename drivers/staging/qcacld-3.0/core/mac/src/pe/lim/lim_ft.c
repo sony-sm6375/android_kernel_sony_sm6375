@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -115,7 +114,8 @@ void lim_ft_cleanup(struct mac_context *mac, struct pe_session *pe_session)
  *------------------------------------------------------------------*/
 void lim_ft_prepare_add_bss_req(struct mac_context *mac,
 		struct pe_session *ft_session,
-		struct bss_description *bssDescription)
+		struct bss_description *bssDescription,
+		tpSirAssocRsp assoc_rsp)
 {
 	struct bss_params *pAddBssParams = NULL;
 	tAddStaParams *sta_ctx;
@@ -165,6 +165,26 @@ void lim_ft_prepare_add_bss_req(struct mac_context *mac,
 #ifdef WLAN_FEATURE_11W
 	pAddBssParams->rmfEnabled = ft_session->limRmfEnabled;
 #endif
+	if (assoc_rsp &&
+	    ft_session->htCapability && pBeaconStruct->HTCaps.present &&
+	    assoc_rsp->HTCaps.present) {
+		/* Some AP have different HT ch width setting in
+		 * beacon/assoc resp. FW uses assoc response to decide
+		 * the bw of HT AP in Roaming sync.
+		 * Here overwrite beacon HT bw setting from assoc
+		 * resp frame to keep sync with FW.
+		 */
+		pBeaconStruct->HTCaps.supportedChannelWidthSet =
+			assoc_rsp->HTCaps.supportedChannelWidthSet;
+		if (pBeaconStruct->HTInfo.present &&
+		    assoc_rsp->HTInfo.present) {
+			pBeaconStruct->HTInfo.secondaryChannelOffset =
+			assoc_rsp->HTInfo.secondaryChannelOffset;
+			pBeaconStruct->HTInfo.recommendedTxWidthSet =
+			assoc_rsp->HTInfo.recommendedTxWidthSet;
+		}
+	}
+
 	/* Use the advertised capabilities from the received beacon/PR */
 	if (IS_DOT11_MODE_HT(ft_session->dot11mode) &&
 	    (pBeaconStruct->HTCaps.present)) {
@@ -507,7 +527,8 @@ void lim_fill_ft_session(struct mac_context *mac,
 			 struct bss_description *pbssDescription,
 			 struct pe_session *ft_session,
 			 struct pe_session *pe_session,
-			 enum wlan_phymode bss_phymode)
+			 enum wlan_phymode bss_phymode,
+			 tpSirAssocRsp assoc_rsp)
 {
 	uint8_t currentBssUapsd;
 	uint8_t bss_chan_id;
@@ -516,7 +537,7 @@ void lim_fill_ft_session(struct mac_context *mac,
 	tSchBeaconStruct *pBeaconStruct;
 	ePhyChanBondState cbEnabledMode;
 	struct vdev_mlme_obj *mlme_obj;
-	bool is_pwr_constraint = false;
+	bool is_pwr_constraint;
 
 	pBeaconStruct = qdf_mem_malloc(sizeof(tSchBeaconStruct));
 	if (!pBeaconStruct)
@@ -572,6 +593,25 @@ void lim_fill_ft_session(struct mac_context *mac,
 	ft_session->htCapability =
 		(IS_DOT11_MODE_HT(ft_session->dot11mode)
 		 && pBeaconStruct->HTCaps.present);
+	if (assoc_rsp &&
+	    ft_session->htCapability && pBeaconStruct->HTCaps.present &&
+	    assoc_rsp->HTCaps.present) {
+		/* Some AP have different HT ch width setting in
+		 * beacon/assoc resp. FW uses assoc response to decide
+		 * the bw of HT AP in Roaming sync.
+		 * Here overwrite beacon HT bw setting from assoc
+		 * resp frame to keep sync with FW.
+		 */
+		pBeaconStruct->HTCaps.supportedChannelWidthSet =
+			assoc_rsp->HTCaps.supportedChannelWidthSet;
+		if (pBeaconStruct->HTInfo.present &&
+		    assoc_rsp->HTInfo.present) {
+			pBeaconStruct->HTInfo.secondaryChannelOffset =
+			assoc_rsp->HTInfo.secondaryChannelOffset;
+			pBeaconStruct->HTInfo.recommendedTxWidthSet =
+			assoc_rsp->HTInfo.recommendedTxWidthSet;
+		}
+	}
 
 	if (IS_DOT11_MODE_HE(ft_session->dot11mode) &&
 	    pBeaconStruct->he_cap.present)
@@ -697,8 +737,6 @@ void lim_fill_ft_session(struct mac_context *mac,
 	if (is_pwr_constraint)
 		localPowerConstraint = regMax - localPowerConstraint;
 
-	mlme_obj->reg_tpc_obj.is_power_constraint_abs = !is_pwr_constraint;
-
 	ft_session->limReassocBssQosCaps =
 		ft_session->limCurrentBssQosCaps;
 
@@ -738,8 +776,10 @@ void lim_fill_ft_session(struct mac_context *mac,
 #ifdef WLAN_FEATURE_11W
 	ft_session->limRmfEnabled = pe_session->limRmfEnabled;
 #endif
-	/* Load default OBSS parameters to session entry */
-	lim_init_obss_params(mac, ft_session);
+	if ((ft_session->limRFBand == REG_BAND_2G) &&
+		(ft_session->htSupportedChannelWidthSet ==
+		eHT_CHANNEL_WIDTH_40MHZ))
+		lim_init_obss_params(mac, ft_session);
 
 	ft_session->enableHtSmps = pe_session->enableHtSmps;
 	ft_session->htSmpsvalue = pe_session->htSmpsvalue;

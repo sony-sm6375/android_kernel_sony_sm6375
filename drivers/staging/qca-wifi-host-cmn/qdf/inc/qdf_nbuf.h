@@ -2953,32 +2953,6 @@ bool qdf_nbuf_data_is_dns_response(qdf_nbuf_t buf)
 }
 
 /**
- * qdf_nbuf_data_is_tcp_fin() - check if skb data is a tcp fin
- * @buf:  buffer
- *
- * Return: true if packet is tcp fin packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_tcp_fin(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_tcp_fin(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_tcp_fin_ack() - check if skb data is a tcp fin ack
- * @buf:  buffer
- *
- * Return: true if packet is tcp fin ack packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_tcp_fin_ack(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_tcp_fin_ack(qdf_nbuf_data(buf));
-}
-
-/**
  * qdf_nbuf_data_is_tcp_syn() - check if skb data is a tcp syn
  * @buf:  buffer
  *
@@ -3002,19 +2976,6 @@ static inline
 bool qdf_nbuf_data_is_tcp_syn_ack(qdf_nbuf_t buf)
 {
 	return __qdf_nbuf_data_is_tcp_syn_ack(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_tcp_rst() - check if skb data is a tcp rst
- * @buf:  buffer
- *
- * Return: true if packet is tcp rst packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_tcp_rst(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_tcp_rst(qdf_nbuf_data(buf));
 }
 
 /**

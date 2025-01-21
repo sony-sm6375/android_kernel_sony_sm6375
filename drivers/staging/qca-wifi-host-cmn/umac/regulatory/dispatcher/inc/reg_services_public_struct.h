@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1205,6 +1204,16 @@ struct reg_freq_range {
 };
 
 /**
+ * struct reg_sched_payload
+ * @psoc: psoc ptr
+ * @pdev: pdev ptr
+ */
+struct reg_sched_payload {
+	struct wlan_objmgr_psoc *psoc;
+	struct wlan_objmgr_pdev *pdev;
+};
+
+/**
  * enum direction
  * @NORTHBOUND: northbound
  * @SOUTHBOUND: southbound
@@ -1350,20 +1359,6 @@ struct avoid_freq_ind_data {
 	struct unsafe_ch_list chan_list;
 };
 
-/**
- * struct reg_sched_payload
- * @psoc: psoc ptr
- * @pdev: pdev ptr
- * @ch_avoid_ind: if avoidance event indicated
- * @avoid_info: chan avoid info if @ch_avoid_ind is true
- */
-struct reg_sched_payload {
-	struct wlan_objmgr_psoc *psoc;
-	struct wlan_objmgr_pdev *pdev;
-	bool ch_avoid_ind;
-	struct avoid_freq_ind_data avoid_info;
-};
-
 #define FIVEG_STARTING_FREQ        5000
 #define TWOG_STARTING_FREQ         2407
 #define TWOG_CHAN_14_IN_MHZ        2484
@@ -1431,7 +1426,6 @@ struct chan_power_info {
  * @frequency: Array of operating frequency
  * @tpe: TPE values processed from TPE IE
  * @chan_power_info: power info to send to FW
- * @is_power_constraint_abs: is power constraint absolute or not
  */
 struct reg_tpc_power_info {
 	bool is_psd_power;
@@ -1443,7 +1437,6 @@ struct reg_tpc_power_info {
 	qdf_freq_t frequency[MAX_NUM_PWR_LEVEL];
 	uint8_t tpe[MAX_NUM_PWR_LEVEL];
 	struct chan_power_info chan_power_info[MAX_NUM_PWR_LEVEL];
-	bool is_power_constraint_abs;
 };
 
 #endif
