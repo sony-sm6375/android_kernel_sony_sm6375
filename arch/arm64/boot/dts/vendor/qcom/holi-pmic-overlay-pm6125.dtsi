@@ -72,7 +72,7 @@
 			&pa_therm2_default
 			&msm_therm_default
 			&rfc_cam_therm_default
-			&rear_cam_flash_therm_default>;
+			&flash_cam_therm_default>;
 
 	/delete-node/ xo_therm;
 
@@ -116,9 +116,9 @@
 		qcom,pre-scaling = <1 1>;
 	};
 
-	rear_cam_flash_therm {
+	flash_cam_therm {
 		reg = <ADC5_GPIO3_100K_PU>;
-		label = "rear_cam_flash_therm";
+		label = "flash_cam_therm";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 		qcom,pre-scaling = <1 1>;
@@ -147,8 +147,8 @@
 		};
 	};
 
-	rear_cam_flash_therm {
-		rear_cam_flash_therm_default: rear_cam_flash_therm_default {
+	flash_cam_therm {
+		flash_cam_therm_default: flash_cam_therm_default {
 			pins = "gpio6";
 			bias-high-impedance;
 		};
@@ -174,7 +174,7 @@
 		qcom,hw-settle-time = <200>;
 	};
 
-	rear_cam_flash_therm {
+	flash_cam_therm {
 		reg = <ADC5_GPIO3_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
@@ -294,7 +294,7 @@
 		};
 	};
 
-	camera-therm-usr {
+	flash-cam-therm-usr {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";

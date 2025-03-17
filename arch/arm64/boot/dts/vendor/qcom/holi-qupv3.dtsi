@@ -286,7 +286,7 @@
 		dma-names = "tx", "rx";
 		qcom,wrapper-core = <&qupv3_1>;
 		qcom,rtl_se;
-		status = "disabled";
+		status = "okay";
 	};
 
 	qupv3_se8_i2c: i2c@4c88000 {
@@ -328,7 +328,7 @@
 		dma-names = "tx", "rx";
 		qcom,shared;
 		qcom,wrapper-core = <&qupv3_1>;
-		status = "disabled";
+		status = "ok";
 	};
 
 };
