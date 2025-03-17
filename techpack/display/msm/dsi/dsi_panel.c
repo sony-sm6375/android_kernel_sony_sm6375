@@ -11,6 +11,7 @@
 #include <linux/pwm.h>
 #include <video/mipi_display.h>
 
+#include "dsi_display.h"
 #include "dsi_panel.h"
 #include "dsi_ctrl_hw.h"
 #include "dsi_parser.h"
@@ -36,6 +37,11 @@
 #define DEFAULT_PANEL_PREFILL_LINES	25
 #define HIGH_REFRESH_RATE_THRESHOLD_TIME_US	500
 #define MIN_PREFILL_LINES      40
+
+#define DSI_BUF_SIZE 1024
+
+#define BR_MAX_FIGURE	9
+#define AREA_COUNT_MAX	9999999
 
 static void dsi_dce_prepare_pps_header(char *buf, u32 pps_delay_ms)
 {
@@ -356,7 +362,7 @@ static int dsi_panel_power_on(struct dsi_panel *panel)
 		DSI_ERR("[%s] failed to reset panel, rc=%d\n", panel->name, rc);
 		goto error_disable_gpio;
 	}
-
+ printk("[lcm] power on+++\n");
 	goto exit;
 
 error_disable_gpio:
@@ -378,6 +384,15 @@ exit:
 static int dsi_panel_power_off(struct dsi_panel *panel)
 {
 	int rc = 0;
+	struct panel_specific_pdata *spec_pdata = NULL;
+
+	spec_pdata = panel->spec_pdata;
+
+	if (spec_pdata->flash_br > 0)
+		spec_pdata->flash_br = 0;
+
+	if (spec_pdata->hbm_mode > 0)
+		spec_pdata->hbm_mode = 0;
 
 	if (panel->is_twm_en || panel->skip_panel_off) {
 		DSI_DEBUG("TWM Enabled, skip panel power off\n");
@@ -411,9 +426,14 @@ static int dsi_panel_power_off(struct dsi_panel *panel)
 		DSI_ERR("[%s] failed to enable vregs, rc=%d\n",
 				panel->name, rc);
 
+printk("[lcm] power off+++\n");
+
 	return rc;
 }
-static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
+
+//static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
+//				enum dsi_cmd_set_type type)
+int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 				enum dsi_cmd_set_type type)
 {
 	int rc = 0, i = 0;
@@ -628,6 +648,24 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 		return 0;
 
 	DSI_DEBUG("backlight type:%d lvl:%d\n", bl->type, bl_lvl);
+
+	if (panel->spec_pdata->flash_br) {
+		pr_info("[%s]Override brightness for display flash. bl_lvl %d to %d\n",
+			__func__, bl_lvl, panel->spec_pdata->flash_br);
+		bl_lvl = panel->spec_pdata->flash_br;
+	}
+
+	if (bl_lvl > panel->spec_pdata->thermal_limit) {
+		pr_info("[%s]Limit brightness, bl_lvl %d to %d\n",
+			__func__, bl_lvl, panel->spec_pdata->thermal_limit);
+		bl_lvl = panel->spec_pdata->thermal_limit;
+	}
+
+	//Adjust register value considering min/max reg val and hmd status
+	bl_lvl = dsi_panel_driver_adjust_brightness(panel, bl_lvl);
+
+	dsi_panel_driver_panel_update_area(panel, bl_lvl);
+
 	switch (bl->type) {
 	case DSI_BACKLIGHT_WLED:
 		rc = backlight_device_set_brightness(bl->raw_bd, bl_lvl);
@@ -1758,6 +1796,8 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command",
 	"qcom,mdss-dsi-qsync-on-commands",
 	"qcom,mdss-dsi-qsync-off-commands",
+	"qcom,mdss-dsi-hbm-on-command",
+	"qcom,mdss-dsi-hbm-off-command",
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -1784,6 +1824,8 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command-state",
 	"qcom,mdss-dsi-qsync-on-commands-state",
 	"qcom,mdss-dsi-qsync-off-commands-state",
+	"qcom,mdss-dsi-hbm-on-command-state",
+	"qcom,mdss-dsi-hbm-off-command-state",
 };
 
 int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)
@@ -2218,6 +2260,23 @@ end:
 	return rc;
 }
 
+int dsi_panel_driver_parse_gpios(struct dsi_panel *panel)
+{
+	int rc = 0;
+	struct panel_specific_pdata *spec_pdata = NULL;
+
+	if (!panel) {
+		DSI_ERR("%s: Invalid input panel\n", __func__);
+		return -EINVAL;
+	}
+	spec_pdata = panel->spec_pdata;
+	spec_pdata->disp_err_fg_gpio = of_get_named_gpio(panel->panel_of_node, "somc,disp-err-flag-gpio", 0);
+	if (!gpio_is_valid(spec_pdata->disp_err_fg_gpio))
+		DSI_ERR("%s: failed get disp error flag gpio\n", __func__);
+
+	return rc;
+}
+
 static int dsi_panel_parse_gpios(struct dsi_panel *panel)
 {
 	int rc = 0;
@@ -2298,6 +2357,13 @@ static int dsi_panel_parse_gpios(struct dsi_panel *panel)
 	if (!gpio_is_valid(panel->panel_test_gpio))
 		DSI_DEBUG("%s:%d panel test gpio not specified\n", __func__,
 			 __LINE__);
+
+	rc = dsi_panel_driver_parse_gpios(panel);
+	if (rc) {
+		DSI_ERR("%s: failed to parse specific parameters, rc=%d\n",
+					__func__, rc);
+		goto error;
+	}
 
 error:
 	return rc;
@@ -2444,6 +2510,9 @@ static int dsi_panel_parse_bl_config(struct dsi_panel *panel)
 	} else {
 		panel->bl_config.brightness_max_level = val;
 	}
+
+	//Save max brightness to thermal limit for brightness as initial value
+	panel->spec_pdata->thermal_limit = panel->bl_config.brightness_max_level;
 
 	panel->bl_config.bl_inverted_dbv = utils->read_bool(utils->data,
 		"qcom,mdss-dsi-bl-inverted-dbv");
@@ -3473,6 +3542,62 @@ static void dsi_panel_setup_vm_ops(struct dsi_panel *panel, bool trusted_vm_env)
 	}
 }
 
+int dsi_panel_driver_parse_dt(struct dsi_panel *panel,
+					struct device_node *np)
+{
+	struct panel_specific_pdata *spec_pdata = NULL;
+	u32 tmp = 0;
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("%s: Invalid input panel\n", __func__);
+		return -EINVAL;
+	}
+	spec_pdata = panel->spec_pdata;
+
+	rc = of_property_read_u32(np, "somc,brightness-adjust-type", &tmp);
+	spec_pdata->br_adjust_type = !rc ? tmp : 0;
+
+	rc = of_property_read_u32(np,
+		"somc,area_count_table_size", &tmp);
+	if (!rc) {
+		spec_pdata->area_count_table_size = tmp;
+	} else if (rc != -EINVAL) {
+		pr_err("%s: Unable to read area_count_table_size\n", __func__);
+		goto area_count_error;
+	}
+
+	if (spec_pdata->area_count_table_size > 0) {
+		spec_pdata->area_count_table = kzalloc(sizeof(int) * spec_pdata->area_count_table_size, GFP_KERNEL);
+		if (!spec_pdata->area_count_table) {
+			pr_err("%s: area_count_table kzalloc error ", __func__);
+			goto area_count_error;
+		}
+
+		spec_pdata->area_count = kzalloc(sizeof(u32) * spec_pdata->area_count_table_size, GFP_KERNEL);
+		if (!spec_pdata->area_count) {
+			kfree(spec_pdata->area_count_table);
+			pr_err("%s: area_count kzalloc error ", __func__);
+			goto area_count_error;
+		}
+
+		rc = of_property_read_u32_array(np, "somc,area_count_table",
+			spec_pdata->area_count_table, spec_pdata->area_count_table_size);
+		if (rc < 0) {
+			kfree(spec_pdata->area_count_table);
+			kfree(spec_pdata->area_count);
+			pr_err("%s: Unable to read area_count_table\n", __func__);
+			goto area_count_error;
+		}
+	}
+
+	return 0;
+area_count_error:
+	spec_pdata->area_count_table_size = 0;
+
+	return 0;
+}
+
 struct dsi_panel *dsi_panel_get(struct device *parent,
 				struct device_node *of_node,
 				struct device_node *parser_node,
@@ -3488,6 +3613,13 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	panel = kzalloc(sizeof(*panel), GFP_KERNEL);
 	if (!panel)
 		return ERR_PTR(-ENOMEM);
+
+	panel->spec_pdata = kzalloc(sizeof(struct panel_specific_pdata),GFP_KERNEL);
+	if (!panel->spec_pdata) {
+		DSI_ERR("%s Unable to alloc spec_pdata\n", __func__);
+		kfree(panel);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	dsi_panel_setup_vm_ops(panel, trusted_vm_env);
 
@@ -3597,6 +3729,11 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	}
 
 	panel->power_mode = SDE_MODE_DPMS_OFF;
+
+	rc = dsi_panel_driver_parse_dt(panel, of_node);
+	if (rc)
+		DSI_ERR("failed to parse panel specific, rc=%d\n", rc);
+
 	drm_panel_init(&panel->drm_panel);
 	panel->drm_panel.dev = &panel->mipi_device.dev;
 	panel->mipi_device.dev.of_node = of_node;
@@ -3623,6 +3760,25 @@ void dsi_panel_put(struct dsi_panel *panel)
 	dsi_panel_esd_config_deinit(&panel->esd_config);
 
 	kfree(panel);
+}
+
+int dsi_panel_driver_gpio_request(struct dsi_panel *panel)
+{
+	struct panel_specific_pdata *spec_pdata = NULL;
+	int rc = 0;
+
+	if (!panel) {
+		DSI_ERR("%s: Invalid input panel\n", __func__);
+		return -EINVAL;
+	}
+	spec_pdata = panel->spec_pdata;
+	if (gpio_is_valid(spec_pdata->disp_err_fg_gpio)) {
+		rc = gpio_request(spec_pdata->disp_err_fg_gpio, "disp_err_fg_gpio");
+		if (rc != 0) {
+			DSI_ERR("request disp err fg gpio failed, rc=%d\n", rc);
+		}
+	}
+	return rc;
 }
 
 int dsi_panel_drv_init(struct dsi_panel *panel,
@@ -3672,7 +3828,11 @@ int dsi_panel_drv_init(struct dsi_panel *panel,
 			       panel->name, rc);
 		goto error_gpio_release;
 	}
-
+	rc = dsi_panel_driver_gpio_request(panel);
+	if (rc) {
+		DSI_ERR("%s: failed to request gpios, rc=%d\n", __func__,rc);
+		goto error_pinctrl_deinit;
+	}
 	goto exit;
 
 error_gpio_release:
@@ -4685,6 +4845,32 @@ int dsi_panel_enable(struct dsi_panel *panel)
 	return rc;
 }
 
+void dsi_panel_driver_post_enable(struct dsi_panel *panel)
+{
+	panel->spec_pdata->display_onoff_state = true;
+
+	if(gpio_is_valid(panel->spec_pdata->disp_err_fg_gpio)) {
+		if(gpio_get_value(panel->spec_pdata->disp_err_fg_gpio)) {
+			pr_err("%s: Error Flag Detected\n", __func__);
+			panel->spec_pdata->short_det.current_chatter_cnt = SHORT_CHATTER_CNT_START;
+			schedule_delayed_work(&panel->spec_pdata->short_det.check_work,
+				msecs_to_jiffies(panel->spec_pdata->short_det.target_chatter_check_interval));
+		}
+	}
+
+	dsi_panel_driver_oled_short_det_enable(panel->spec_pdata, SHORT_WORKER_PASSIVE);
+}
+
+void dsi_panel_driver_pre_disable(struct dsi_panel *panel)
+{
+	dsi_panel_driver_oled_short_det_disable(panel->spec_pdata);
+}
+
+void dsi_panel_driver_disable(struct dsi_panel *panel)
+{
+	panel->spec_pdata->display_onoff_state = false;
+}
+
 int dsi_panel_post_enable(struct dsi_panel *panel)
 {
 	int rc = 0;
@@ -4702,6 +4888,8 @@ int dsi_panel_post_enable(struct dsi_panel *panel)
 		       panel->name, rc);
 		goto error;
 	}
+
+	dsi_panel_driver_post_enable(panel);
 error:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
@@ -4727,6 +4915,8 @@ int dsi_panel_pre_disable(struct dsi_panel *panel)
 		       panel->name, rc);
 		goto error;
 	}
+
+	dsi_panel_driver_pre_disable(panel);
 
 error:
 	mutex_unlock(&panel->panel_lock);
@@ -4774,7 +4964,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 	}
 	panel->panel_initialized = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
-
+	dsi_panel_driver_disable(panel);
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
@@ -4822,4 +5012,432 @@ int dsi_panel_post_unprepare(struct dsi_panel *panel)
 error:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
+}
+
+void dsi_panel_driver_oled_short_det_enable(
+		struct panel_specific_pdata *spec_pdata, bool inwork)
+{
+	struct short_detection_ctrl *short_det = NULL;
+
+	if (spec_pdata == NULL) {
+		DSI_ERR("%s: Invalid parameter\n", __func__);
+		return;
+	}
+	short_det = &spec_pdata->short_det;
+
+	if (short_det == NULL) {
+		DSI_ERR("%s: NULL pointer detected\n", __func__);
+		return;
+	}
+
+	if (short_det->short_check_working && !inwork) {
+		DSI_DEBUG("%s: short_check_worker is already being processed.\n", __func__);
+		return;
+	}
+
+	if (short_det->irq_enable)
+		return;
+
+	short_det->irq_enable = true;
+	enable_irq(short_det->irq_num);
+
+	return;
+}
+
+void dsi_panel_driver_oled_short_det_disable(
+		struct panel_specific_pdata *spec_pdata)
+{
+	struct short_detection_ctrl *short_det = NULL;
+
+	if (spec_pdata == NULL) {
+		DSI_ERR("%s: Invalid parameter\n", __func__);
+		return;
+	}
+	short_det = &spec_pdata->short_det;
+
+	if (short_det == NULL) {
+		DSI_ERR("%s: NULL pointer detected\n", __func__);
+		return;
+	}
+
+	disable_irq(short_det->irq_num);
+	short_det->irq_enable = false;
+
+	return;
+}
+
+void dsi_panel_driver_oled_short_check_worker(struct work_struct *work)
+{
+	int rc = 0;
+	struct delayed_work *dwork;
+	struct short_detection_ctrl *short_det;
+	struct panel_specific_pdata *spec_pdata;
+
+	if (work == NULL) {
+		DSI_ERR("%s: Invalid parameter\n", __func__);
+		return;
+	}
+	dwork = to_delayed_work(work);
+
+	short_det = container_of(dwork, struct short_detection_ctrl, check_work);
+	spec_pdata = container_of(short_det, struct panel_specific_pdata, short_det);
+
+	if (spec_pdata == NULL || short_det == NULL) {
+		DSI_ERR("%s: Null pointer detected\n", __func__);
+		return;
+	}
+
+	if (!spec_pdata->display_onoff_state) {
+		DSI_ERR("%s: power status failed\n", __func__);
+		return;
+	}
+
+	if (short_det->short_check_working) {
+		DSI_DEBUG("%s: already status checked\n", __func__);
+		return;
+	}
+	short_det->short_check_working = true;
+
+	if (short_det->current_chatter_cnt == SHORT_CHATTER_CNT_START)
+		dsi_panel_driver_oled_short_det_disable(spec_pdata);
+
+	/* status check */
+	rc = gpio_get_value(spec_pdata->disp_err_fg_gpio);
+	if (rc > 0) {
+		short_det->current_chatter_cnt++;
+		DSI_ERR("%s: Short Detection [%d]\n",
+				__func__, short_det->current_chatter_cnt);
+		if (short_det->current_chatter_cnt >=
+				SHORT_DEFAULT_TARGET_CHATTER_CNT) {
+			DSI_ERR("%s: execute shutdown.\n", __func__);
+
+			/* shutdown */
+			for (;;) {
+				pm_power_off();
+				msleep(SHORT_POWER_OFF_RETRY_INTERVAL);
+			}
+			return;
+		}
+
+		short_det->short_check_working = false;
+		schedule_delayed_work(&short_det->check_work,
+			msecs_to_jiffies(short_det->target_chatter_check_interval));
+		return;
+	}
+	dsi_panel_driver_oled_short_det_enable(spec_pdata, SHORT_WORKER_ACTIVE);
+
+	/* reset count*/
+	short_det->current_chatter_cnt = 0;
+	short_det->short_check_working = false;
+
+	DSI_DEBUG("%s: short_check_worker done.\n", __func__);
+	return;
+}
+
+int dsi_panel_set_hbm(struct dsi_panel *panel, u32 mode)
+{
+	int rc = 0;
+
+	if (!panel) {
+		DSI_ERR("hbm invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	rc = dsi_panel_set_hbm_mode_core(panel, mode);
+	mutex_unlock(&panel->panel_lock);
+
+	return rc;
+}
+
+int dsi_panel_set_hbm_mode_core(struct dsi_panel *panel, u32 mode)
+{
+	int rc = 0;
+
+	if (panel == NULL) {
+		pr_err("invalid params\n");
+		return -EINVAL;
+	}
+
+	if (!panel->spec_pdata->display_onoff_state) {
+		pr_err("%s: Display is off, can't set HBM mode\n", __func__);
+		return -EAGAIN;
+	}
+
+	rc = (mode == 0) ? dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_HBM_OFF) :
+		dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_HBM_ON);
+
+	if (rc != 0)
+		pr_err("[%s] failed to send DSI_CMD_SET_HBM_XX(%d) cmd, rc=%d\n",
+			panel->name, mode, rc);
+	else {
+		panel->spec_pdata->hbm_mode = mode;
+			pr_err("set HBM mode=%d\n", mode);
+	}
+	return rc;
+}
+
+static void dsi_panel_driver_update_areacount(struct dsi_panel *panel, int new_area)
+{
+	u32 now;
+	u32 duration;
+	struct panel_specific_pdata *spec_pdata = NULL;
+
+	spec_pdata = panel->spec_pdata;
+
+	now = jiffies;
+	duration = (now - spec_pdata->start_jiffies) >= 0 ?
+		(now - spec_pdata->start_jiffies) : (now + spec_pdata->start_jiffies);
+	spec_pdata->area_count[spec_pdata->now_area]
+			= spec_pdata->area_count[spec_pdata->now_area]
+				+ jiffies_to_msecs(duration);
+
+	spec_pdata->now_area = new_area;
+	spec_pdata->start_jiffies = now;
+}
+
+static ssize_t dsi_panel_driver_area_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+
+	struct dsi_display *display = dev_get_drvdata(dev);
+	int i;
+	char area_count_str[DSI_BUF_SIZE];
+	char count_data[BR_MAX_FIGURE];
+	struct panel_specific_pdata *spec_pdata = NULL;
+
+	spec_pdata = display->panel->spec_pdata;
+
+	if (!spec_pdata->area_count_table_size)
+		return snprintf(buf, DSI_BUF_SIZE, "area_count is not supported\n");
+
+	mutex_lock(&display->display_lock);
+	/* fixed statistics */
+	dsi_panel_driver_update_areacount(display->panel, spec_pdata->now_area);
+
+	memset(area_count_str, 0, sizeof(char) * DSI_BUF_SIZE);
+	for (i = 0; i < spec_pdata->area_count_table_size; i++) {
+		pr_debug("%ld, ", spec_pdata->area_count[i]);
+		memset(count_data, 0, sizeof(char) * BR_MAX_FIGURE);
+		if (spec_pdata->area_count[i] > AREA_COUNT_MAX) {
+			/* over 167 min */
+			spec_pdata->area_count[i] = AREA_COUNT_MAX;
+		}
+		if (i == 0) {
+			snprintf(count_data, BR_MAX_FIGURE,
+				"%ld", spec_pdata->area_count[i]);
+			strlcpy(area_count_str, count_data, DSI_BUF_SIZE);
+		} else {
+			snprintf(count_data, BR_MAX_FIGURE,
+				",%ld", spec_pdata->area_count[i]);
+			strlcat(area_count_str, count_data, DSI_BUF_SIZE);
+		}
+	}
+
+	memset(spec_pdata->area_count, 0, sizeof(u32) * spec_pdata->area_count_table_size);
+	mutex_unlock(&display->display_lock);
+
+	return snprintf(buf, DSI_BUF_SIZE, "%s\n", area_count_str);
+}
+
+static ssize_t dsi_panel_driver_thermal_limit_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct dsi_display *display = dev_get_drvdata(dev);
+	struct dsi_panel *panel = display->panel;
+	int limit_brightness;
+
+	mutex_lock(&display->display_lock);
+	mutex_lock(&panel->panel_lock);
+
+	if (sscanf(buf, "%d", &limit_brightness) < 0) {
+		pr_err("[%s]:sscanf failed to set thermal limit brightness. keep current value %d\n",
+			__func__, panel->spec_pdata->thermal_limit);
+		goto thermal_limit_error;
+	}
+
+	panel->spec_pdata->thermal_limit = limit_brightness;
+	pr_info("[%s]:Set brightness limit, thermal_limit = %d\n",
+					 __func__, panel->spec_pdata->thermal_limit);
+
+	if (!panel->spec_pdata->display_onoff_state) {
+		pr_info("[%s]:Display is off, set thermal_limit only, skip update brightness\n",
+                         __func__);
+		mutex_unlock(&panel->panel_lock);
+		mutex_unlock(&display->display_lock);
+		return count;
+	}
+
+	dsi_panel_set_backlight(panel, panel->bl_config.brightness);
+
+	mutex_unlock(&panel->panel_lock);
+	mutex_unlock(&display->display_lock);
+	return count;
+
+thermal_limit_error:
+	mutex_unlock(&panel->panel_lock);
+	mutex_unlock(&display->display_lock);
+	return -EINVAL;
+}
+
+static ssize_t dsi_panel_driver_thermal_limit_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dsi_display *display = dev_get_drvdata(dev);
+	return scnprintf(buf, PAGE_SIZE, "%u", display->panel->spec_pdata->thermal_limit);
+}
+
+static ssize_t dsi_panel_driver_camera_flash_br_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct dsi_display *display = dev_get_drvdata(dev);
+	struct dsi_panel *panel = display->panel;
+	int brightness;
+
+	mutex_lock(&display->display_lock);
+	mutex_lock(&panel->panel_lock);
+	if (!panel->spec_pdata->display_onoff_state) {
+		pr_err("%s: Display is off, can't set camera flash mode\n", __func__);
+		goto flash_br_error;
+	}
+
+	if (sscanf(buf, "%d", &brightness) < 0) {
+		pr_err("[%s]:sscanf failed to set flash_br, keep current value =%d\n",
+						 __func__, panel->spec_pdata->flash_br);
+		goto flash_br_error;
+	}
+
+	panel->spec_pdata->flash_br = brightness;
+	pr_info("[%s]:camera flash mode %s, flash_br = %d.\n", __func__,
+				panel->spec_pdata->flash_br > 0 ? "ON" : "OFF",
+				panel->spec_pdata->flash_br);
+
+	dsi_panel_set_backlight(panel, panel->bl_config.brightness);
+
+	mutex_unlock(&panel->panel_lock);
+	mutex_unlock(&display->display_lock);
+	return count;
+
+flash_br_error:
+	mutex_unlock(&panel->panel_lock);
+	mutex_unlock(&display->display_lock);
+	return -EINVAL;
+}
+
+static ssize_t dsi_panel_driver_camera_flash_br_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dsi_display *display = dev_get_drvdata(dev);
+	return scnprintf(buf, PAGE_SIZE, "%u", display->panel->spec_pdata->flash_br);
+}
+
+static struct device_attribute panel_attributes[] = {
+	__ATTR(area_count, (S_IRUSR | S_IRGRP),
+		dsi_panel_driver_area_count_show,
+		NULL),
+    __ATTR(thermal_limit, S_IRUSR|S_IRGRP|S_IWUSR|S_IWGRP,
+		dsi_panel_driver_thermal_limit_show,
+		dsi_panel_driver_thermal_limit_store),
+	__ATTR(camera_flash_brightness, S_IRUSR|S_IRGRP|S_IWUSR|S_IWGRP,
+		dsi_panel_driver_camera_flash_br_show,
+		dsi_panel_driver_camera_flash_br_store),
+};
+
+int dsi_panel_register_attributes(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(panel_attributes); i++)
+		if (device_create_file(dev, panel_attributes + i))
+			goto error;
+	return 0;
+
+error:
+	dev_err(dev, "%s: Unable to create interface\n", __func__);
+
+	for (--i; i >= 0 ; i--)
+		device_remove_file(dev, panel_attributes + i);
+	return -ENODEV;
+}
+
+static u32 dsi_panel_driver_get_area(struct dsi_panel *panel, u32 level)
+{
+	int i;
+	struct panel_specific_pdata *spec_pdata = NULL;
+
+	spec_pdata = panel->spec_pdata;
+
+	for (i = 0; i < spec_pdata->area_count_table_size; i++) {
+		if (i == 0) {
+			if (level == spec_pdata->area_count_table[i])
+				break;
+		} else {
+			if (level <= spec_pdata->area_count_table[i])
+				break;
+		}
+	}
+
+	return i;
+}
+
+void dsi_panel_driver_panel_update_area(struct dsi_panel *panel, u32 level)
+{
+	struct panel_specific_pdata *spec_pdata = NULL;
+	u32 new_area = dsi_panel_driver_get_area(panel, level);
+
+	spec_pdata = panel->spec_pdata;
+
+	if (spec_pdata->now_area != new_area)
+		dsi_panel_driver_update_areacount(panel, new_area);
+}
+
+void dsi_panel_driver_init_area_count(struct dsi_panel *panel)
+{
+	struct panel_specific_pdata *spec_pdata = NULL;
+
+	spec_pdata = panel->spec_pdata;
+
+	spec_pdata->now_area = 0;
+	spec_pdata->start_jiffies = jiffies;
+}
+
+void dsi_panel_driver_deinit_area_count(struct dsi_panel *panel)
+{
+	struct panel_specific_pdata *spec_pdata = NULL;
+
+	spec_pdata = panel->spec_pdata;
+
+	if (spec_pdata->area_count_table)
+		kfree(spec_pdata->area_count_table);
+	if (spec_pdata->area_count)
+		kfree(spec_pdata->area_count);
+}
+
+int dsi_panel_driver_adjust_brightness(struct dsi_panel *panel, u32 bl_lvl)
+{
+	u32 res = 0;
+
+	if (bl_lvl == 0)
+		return bl_lvl;
+
+	switch (panel->spec_pdata->br_adjust_type) {
+		case BR_ADJUST_TYPE1:
+			res = dsi_panel_driver_adjust_brightness_type1(panel, bl_lvl);
+			break;
+		case BR_ADJUST_TYPE2:
+			res = dsi_panel_driver_adjust_brightness_type2(panel, bl_lvl);
+			break;
+		case BR_ADJUST_TYPE3:
+			res = dsi_panel_driver_adjust_brightness_type3(panel, bl_lvl);
+			break;
+		default:
+			res = dsi_panel_driver_adjust_brightness_default(panel, bl_lvl);
+	}
+
+	if (res > panel->bl_config.bl_max_level)
+		res = panel->bl_config.bl_max_level;
+
+	pr_debug("[%s]adjust brightness : %d to %d type = %d\n",
+			 __func__, bl_lvl, res, panel->spec_pdata->br_adjust_type);
+	return res;
 }
