@@ -9,7 +9,7 @@
 #include "cam_sensor_util.h"
 #include "cam_mem_mgr.h"
 #include "cam_res_mgr_api.h"
-
+#include "../cam_sensor_extldo_wl2868c/wl2868c.h"
 #define CAM_SENSOR_PINCTRL_STATE_SLEEP "cam_suspend"
 #define CAM_SENSOR_PINCTRL_STATE_DEFAULT "cam_default"
 
@@ -75,11 +75,11 @@ int32_t cam_sensor_util_regulator_powerup(struct cam_hw_soc_info *soc_info)
 		if (IS_ERR_OR_NULL(soc_info->rgltr[i])) {
 			rc = PTR_ERR(soc_info->rgltr[i]);
 			rc = rc ? rc : -EINVAL;
-			CAM_ERR(CAM_SENSOR, "get failed for regulator %s %d",
+			CAM_ERR(CAM_ACTUATOR, "get failed for regulator %s %d",
 				 soc_info->rgltr_name[i], rc);
 			return rc;
 		}
-		CAM_DBG(CAM_SENSOR, "get for regulator %s",
+		CAM_DBG(CAM_ACTUATOR, "get for regulator %s",
 			soc_info->rgltr_name[i]);
 	}
 
@@ -196,6 +196,11 @@ int32_t cam_sensor_handle_random_write(
 {
 	struct i2c_settings_list  *i2c_list;
 	int32_t rc = 0, cnt, payload_count;
+    struct list_head  *i2c_list_head = &(i2c_reg_settings->list_head);
+
+    /* Null pointer judgment */
+    if(i2c_list_head->prev == NULL)
+        return -ENOMEM;
 
 	payload_count = cam_cmd_i2c_random_wr->header.count;
 	i2c_list = cam_sensor_get_i2c_ptr(i2c_reg_settings,
@@ -236,6 +241,11 @@ static int32_t cam_sensor_handle_continuous_write(
 {
 	struct i2c_settings_list *i2c_list;
 	int32_t rc = 0, cnt, payload_count;
+    struct list_head  *i2c_list_head = &(i2c_reg_settings->list_head);
+
+    /* Null pointer judgment */
+    if(i2c_list_head->prev == NULL)
+        return -ENOMEM;
 
 	payload_count = cam_cmd_i2c_continuous_wr->header.count;
 	i2c_list = cam_sensor_get_i2c_ptr(i2c_reg_settings,
@@ -1196,8 +1206,109 @@ int32_t msm_camera_fill_vreg_params(
 			if (j == num_vreg)
 				power_setting[i].seq_val = INVALID_VREG;
 			break;
-		default:
+#ifdef CONFIG_CAMERA_EXTLDO_WL2868C
+		case SENSOR_WL2868C_VDIG:
+			for (j = 0; j < num_vreg; j++) {
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vdig")) {
+
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2864c_vdig", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+					break;
+				}
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
 			break;
+
+		case SENSOR_WL2868C_VIO:
+			for (j = 0; j < num_vreg; j++) {
+
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vio")) {
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2864c_vio", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+					break;
+				}
+
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
+			break;
+
+		case SENSOR_WL2868C_VANA:
+			for (j = 0; j < num_vreg; j++) {
+
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vana")) {
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2868c_vana", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+					break;
+				}
+
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
+			break;
+
+		case SENSOR_WL2868C_VAF:
+			for (j = 0; j < num_vreg; j++) {
+
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vaf")) {
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2868c_vaf", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+
+					break;
+				}
+
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
+			break;
+#endif
+	default:
+		break;
 		}
 	}
 
