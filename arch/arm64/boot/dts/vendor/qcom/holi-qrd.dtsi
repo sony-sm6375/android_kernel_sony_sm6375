@@ -3,7 +3,6 @@
 #include <dt-bindings/input/linux-event-codes.h>
 #include "holi-pmic-overlay.dtsi"
 #include "holi-thermal-overlay.dtsi"
-#include "camera/holi-camera-sensor-qrd.dtsi"
 #include "display/holi-sde-display-qrd.dtsi"
 #include <dt-bindings/iio/qti_power_supply_iio.h>
 
@@ -143,7 +142,7 @@
 };
 
 &wsa881x_i2c_e {
-	status = "ok";
+	status = "disabled";
 };
 
 &holi_snd {
@@ -158,8 +157,6 @@
 		"Analog Mic2", "MIC BIAS2",
 		"AMIC3", "Analog Mic3",
 		"Analog Mic3", "MIC BIAS3",
-		"AMIC4", "Analog Mic4",
-		"Analog Mic4", "MIC BIAS3",
 		"TX DMIC0", "Digital Mic0",
 		"TX DMIC0", "MIC BIAS1",
 		"TX DMIC1", "Digital Mic1",
@@ -175,7 +172,6 @@
 		"RX_TX DEC1_INP", "TX DEC1 MUX",
 		"RX_TX DEC2_INP", "TX DEC2 MUX",
 		"RX_TX DEC3_INP", "TX DEC3 MUX",
-		"SpkrMono WSA_IN", "AUX",
 		"TX SWR_INPUT", "WCD_TX_OUTPUT",
 		"VA SWR_INPUT", "VA_SWR_CLK",
 		"VA SWR_INPUT", "WCD_TX_OUTPUT",
@@ -197,11 +193,9 @@
 	qcom,cdc-dmic01-gpios = <&cdc_dmic01_gpios>;
 	qcom,cdc-dmic23-gpios = <&cdc_dmic23_gpios>;
 	asoc-codec  = <&stub_codec>, <&bolero>,
-		      <&wcd937x_codec>, <&wsa881x_i2c_e>,
-		      <&wsa881x_i2c_f>;
+		      <&wcd937x_codec>;
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
-			   "wcd937x_codec", "wsa-codec0",
-			   "wsa-codec1";
+			   "wcd937x_codec";
 	qcom,msm_audio_ssr_devs = <&audio_apr>, <&q6core>, <&lpi_tlmm>,
 				  <&bolero>;
 };
@@ -225,11 +219,6 @@
 		};
 	};
 
-	qrd_batterydata: qcom,battery-data {
-		qcom,batt-id-range-pct = <15>;
-		#include "qg-batterydata-atl436186020H_3780mAh.dtsi"
-		#include "qg-batterydata-atl466271_3300mAh.dtsi"
-	};
 };
 
 &pm6150a_l1 {
@@ -305,9 +294,8 @@
 			   "cp_enable",
 			   "cp_ilim",
 			   "cp_die_temp";
-	qcom,battery-data = <&qrd_batterydata>;
 	qcom,sec-charger-config = <1>;
-	qcom,auto-recharge-soc = <98>;
+	qcom,auto-recharge-soc = <95>;
 	qcom,step-charging-enable;
 	qcom,sw-jeita-enable;
 	qcom,charger-temp-max = <800>;
@@ -317,11 +305,17 @@
 	qcom,fcc-step-delay-ms = <100>;
 	qcom,fcc-step-size-ua = <100000>;
 	qcom,smb-internal-pull-kohm = <0>;
+	qcom,otg-cl-ua = <1000000>;
+	qcom,hvdcp-disable;
+	qcom,chg-term-current-ma = <(-246)>;
+	qcom,chg-term-src = <1>;
 	qcom,en-skin-therm-mitigation;
-	qcom,thermal-mitigation = <10000000 9500000 9000000 8500000 8000000
-				7500000 7000000 6500000 6000000 5500000 5000000 4500000
-				4000000 3500000 3000000 2500000 2000000 1500000 1000000
-				500000>;
+	qcom,serial-tx-gpio = <&tlmm 25 0>;
+	qcom,serial-rx-gpio = <&tlmm 26 0>;
+	qcom,thermal-mitigation = <4000000 3800000 3500000 3300000 3000000
+				2800000 2600000 2500000 2400000 2200000 2000000 1800000
+				1600000 1400000 1200000 1000000 800000 600000 400000
+				200000 100000>;
 };
 
 &thermal_zones {
@@ -331,12 +325,13 @@
 		thermal-governor = "step_wise";
 		thermal-sensors = <&pm6150l_adc_tm ADC5_GPIO4_100K_PU>;
 		trips {
+/*
 			battery_trip0: battery-trip0 {
 				temperature = <42000>;
 				hysteresis = <2000>;
 				type = "passive";
 			};
-
+*/
 			modem_skin_trip0: modem-skin-trip0 {
 				temperature = <42000>;
 				hysteresis = <4000>;
@@ -348,13 +343,13 @@
 				hysteresis = <0>;
 				type = "passive";
 			};
-
+/*
 			battery_trip1: battery-trip1 {
 				temperature = <44000>;
 				hysteresis = <2000>;
 				type = "passive";
 			};
-
+*/
 			modem_skin_trip1: modem-skin-trip1 {
 				temperature = <44000>;
 				hysteresis = <4000>;
@@ -366,7 +361,7 @@
 				hysteresis = <0>;
 				type = "passive";
 			};
-
+/*
 			battery_trip2: battery-trip2 {
 				temperature = <46000>;
 				hysteresis = <2000>;
@@ -384,7 +379,7 @@
 				hysteresis = <1000>;
 				type = "passive";
 			};
-
+*/
 			cx_trip: cx-trip {
 				temperature = <55000>;
 				hysteresis = <5000>;
@@ -440,7 +435,7 @@
 				trip = <&cx_trip>;
 				cooling-device = <&modem_skin 3 3>;
 			};
-
+/*
 			battery-cdev0 {
 				trip = <&battery_trip0>;
 				cooling-device = <&pm7250b_charger 6 6>;
@@ -465,6 +460,7 @@
 				trip = <&battery_trip4>;
 				cooling-device = <&pm7250b_charger 18 18>;
 			};
+*/
 		};
 	};
 
@@ -572,7 +568,7 @@
 			   "force_recharge",
 			   "charge_done",
 			   "cp_charging_enabled";
-	qcom,qg-iterm-ma = <150>;
+	qcom,qg-iterm-ma = <561>;
 	qcom,hold-soc-while-full;
 	qcom,linearize-soc;
 	qcom,cl-feedback-on;

@@ -3,11 +3,6 @@
 #include "holi-pm7250b.dtsi"
 
 &soc {
-	qrd_batterydata: qcom,battery-data {
-		qcom,batt-id-range-pct = <15>;
-		#include "qg-batterydata-atl436186020H_3780mAh.dtsi"
-		#include "qg-batterydata-atl466271_3300mAh.dtsi"
-	};
 };
 
 &pm7250b_charger {
@@ -75,9 +70,8 @@
 			   "cp_enable",
 			   "cp_ilim",
 			   "cp_die_temp";
-	qcom,battery-data = <&qrd_batterydata>;
 	qcom,sec-charger-config = <1>;
-	qcom,auto-recharge-soc = <98>;
+	qcom,auto-recharge-soc = <95>;
 	qcom,step-charging-enable;
 	qcom,sw-jeita-enable;
 	qcom,charger-temp-max = <800>;
@@ -87,11 +81,17 @@
 	qcom,fcc-step-delay-ms = <100>;
 	qcom,fcc-step-size-ua = <100000>;
 	qcom,smb-internal-pull-kohm = <0>;
+	qcom,otg-cl-ua = <1000000>;
+	qcom,hvdcp-disable;
+	qcom,chg-term-current-ma = <(-246)>;
+	qcom,chg-term-src = <1>;
 	qcom,en-skin-therm-mitigation;
-	qcom,thermal-mitigation = <10000000 9500000 9000000 8500000 8000000
-				7500000 7000000 6500000 6000000 5500000 5000000 4500000
-				4000000 3500000 3000000 2500000 2000000 1500000 1000000
-				500000>;
+	qcom,serial-tx-gpio = <&tlmm 25 0>;
+	qcom,serial-rx-gpio = <&tlmm 26 0>;
+	qcom,thermal-mitigation = <4000000 3800000 3500000 3300000 3000000
+				2800000 2600000 2500000 2400000 2200000 2000000 1800000
+				1600000 1400000 1200000 1000000 800000 600000 400000
+				200000 100000>;
 };
 
 &pm7250b_qg {
@@ -111,7 +111,7 @@
 			   "force_recharge",
 			   "charge_done",
 			   "cp_charging_enabled";
-	qcom,qg-iterm-ma = <150>;
+	qcom,qg-iterm-ma = <561>;
 	qcom,hold-soc-while-full;
 	qcom,linearize-soc;
 	qcom,cl-feedback-on;
@@ -179,6 +179,17 @@
 };
 
 &pm7250b_vadc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&get_stageid_adc_mb_default>;
+
+	get_stageid_adc_mb {
+		reg = <ADC5_AMUX_THM4_100K_PU>;
+		label = "get_stageid_adc_mb";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};
+
 	smb1390_therm@e {
 		qcom,scale-fn-type = <ADC_SCALE_HW_CALIB_PM5_SMB1398_TEMP>;
 	};
@@ -193,6 +204,13 @@
 			bias-pull-up;
 			qcom,pull-up-strength = <PMIC_GPIO_PULL_UP_30>;
 			power-source = <0>;
+		};
+	};
+
+	get_stageid_adc_mb {
+		get_stageid_adc_mb_default: get_stageid_adc_mb_default {
+			pins = "gpio1";
+			bias-high-impedance;
 		};
 	};
 };
@@ -235,6 +253,7 @@
 &thermal_zones {
 	quiet-therm-step {
 		cooling-maps {
+/*
 			battery-cdev0 {
 				trip = <&battery_trip0>;
 				cooling-device = <&pm7250b_charger 6 6>;
@@ -259,6 +278,7 @@
 				trip = <&battery_trip4>;
 				cooling-device = <&pm7250b_charger 18 18>;
 			};
+*/
 		};
 	};
 };
