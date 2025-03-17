@@ -834,5 +834,10 @@ int dsi_display_ctrl_vreg_on(struct dsi_display *display);
  * Return: Zero on Success
  */
 int dsi_display_ctrl_vreg_off(struct dsi_display *display);
+int dsi_panel_tx_cmd(struct dsi_panel *panel, struct dsi_cmd_desc *cmds);
+int dsi_panel_rx_cmd(struct dsi_display *display, struct dsi_cmd_desc *cmds,
+                      struct dsi_display_ctrl *ctrl, char *rbuf, int len);
+int dsi_display_cmd_engine_enable(struct dsi_display *display);
+int dsi_display_cmd_engine_disable(struct dsi_display *display);
 
 #endif /* _DSI_DISPLAY_H_ */
