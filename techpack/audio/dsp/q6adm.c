@@ -6148,6 +6148,38 @@ done:
 }
 EXPORT_SYMBOL(adm_get_doa_tracking_mon);
 
+int adm_set_rampup_clipper(int port_id, int copp_idx, uint32_t enable,
+				uint32_t module_id)
+{
+	struct audproc_enable_rampup_clipper_module clipper_enable;
+	struct param_hdr_v3 param_hdr;
+	int rc  = 0;
+
+	pr_debug("%s: enable: %d\n", __func__, enable);
+
+	memset(&clipper_enable, 0, sizeof(clipper_enable));
+	memset(&param_hdr, 0, sizeof(param_hdr));
+	param_hdr.module_id = module_id;
+	param_hdr.instance_id = INSTANCE_ID_0;
+	param_hdr.param_id = AUDPROC_PARAM_ID_RAMP_UP_CLIPPER_ENABLE;
+	param_hdr.param_size = sizeof(clipper_enable);
+
+	clipper_enable.num_channels = 2;
+	clipper_enable.clipper_enable_left = 0;
+	clipper_enable.clipper_enable_right = 0;
+	clipper_enable.gain_fade_in_enable_left = enable;
+	clipper_enable.gain_fade_in_enable_right = 0;
+
+	rc = adm_pack_and_set_one_pp_param(port_id, copp_idx, param_hdr,
+					   (uint8_t *) &clipper_enable);
+
+	if (rc)
+		pr_err("%s: Failed to set rampup clipper, err %d\n", __func__, rc);
+
+	return rc;
+}
+EXPORT_SYMBOL(adm_set_rampup_clipper);
+
 int __init adm_init(void)
 {
 	int i = 0, j;
