@@ -1211,6 +1211,7 @@
 		};
 
 		pm8008_active: pm8008_active {
+#ifndef CONFIG_ARCH_SONY_ZAMBEZI
 			mux {
 				pins = "gpio58";
 				function = "gpio";
@@ -1222,6 +1223,7 @@
 				output-high;
 				drive-strength = <2>;
 			};
+#endif
 		};
 	};
 };

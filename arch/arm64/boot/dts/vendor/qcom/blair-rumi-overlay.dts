@@ -6,6 +6,10 @@
 / {
 	model = "Qualcomm Technologies, Inc. Blair RUMI";
 	compatible = "qcom,blair-rumi", "qcom,blair", "qcom,rumi";
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+	qcom,msm-id = <507 0x10000>, <578 0x10000>, <647 0x10000>;
+#else
 	qcom,msm-id = <507 0x10000>, <578 0x10000>;
+#endif
 	qcom,board-id = <15 0>;
 };

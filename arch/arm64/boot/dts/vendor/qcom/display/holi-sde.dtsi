@@ -145,7 +145,9 @@
 &mdss_dsi_phy0 {
 	vdda-0p9-supply = <&S5A_LEVEL>;
 	qcom,panel-allow-phy-poweroff;
+#ifndef CONFIG_ARCH_SONY_ZAMBEZI
 	qcom,dsi-pll-ssc-en;
+#endif
 	qcom,dsi-pll-ssc-mode = "down-spread";
 	memory-region = <&dfps_data_memory>;
 };

@@ -6,7 +6,11 @@
 / {
 	model = "Qualcomm Technologies, Inc. Blairp CDP";
 	compatible = "qcom,blairp-cdp", "qcom,blairp", "qcom,cdp";
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+	qcom,msm-id = <565 0x10000>, <628 0x10000>, <647 0x10000>;
+#else
 	qcom,msm-id = <565 0x10000>, <628 0x10000>;
+#endif
 	qcom,board-id = <1 0>;
 };
 

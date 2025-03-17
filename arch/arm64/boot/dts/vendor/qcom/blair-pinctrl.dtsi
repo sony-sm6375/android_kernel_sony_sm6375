@@ -383,7 +383,11 @@
 
 				config {
 					pins = "gpio19", "gpio20";
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+					drive-strength = <0>;
+#else
 					drive-strength = <2>;
+#endif
 					bias-disable;
 				};
 			};
@@ -578,6 +582,7 @@
 			};
 		};
 
+#ifndef CONFIG_ARCH_SONY_ZAMBEZI
 		spkr_2_sd_n {
 			spkr_2_sd_n_sleep: spkr_2_sd_n_sleep {
 				mux {
@@ -607,6 +612,7 @@
 				};
 			};
 		};
+#endif
 
 		/* WCD reset pin */
 		wcd937x_reset_active: wcd937x_reset_active {
@@ -809,6 +815,65 @@
 			};
 		};
 
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+		cci3_active: cci3_active {
+			mux {
+				/* CLK, DATA */
+				pins = "gpio2", "gpio3";
+				function = "CCI_I2C";
+			};
+
+			config {
+				pins = "gpio2", "gpio3";
+				bias-pull-up; /* PULL UP*/
+				drive-strength = <2>; /* 2 MA */
+			};
+		};
+
+		cci3_suspend: cci3_suspend {
+			mux {
+				/* CLK, DATA */
+				pins = "gpio2", "gpio3";
+				function = "CCI_I2C";
+			};
+
+			config {
+				pins = "gpio2", "gpio3";
+				bias-pull-down; /* PULL DOWN */
+				drive-strength = <2>; /* 2 MA */
+			};
+		};
+
+		flash_active: flash_active {
+			/* RESET0 */
+			mux {
+				pins = "gpio11";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio11";
+				bias-disable; /* No PULL */
+				drive-strength = <2>; /* 2 MA */
+			};
+		};
+
+		flash_suspend: flash_suspend {
+			/* flash suspend */
+			mux {
+				pins = "gpio11";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio11";
+				bias-pull-down; /* PULL DOWN */
+				drive-strength = <2>; /* 2 MA */
+				output-low;
+			};
+		};
+#endif
+
 		cam_sensor_mclk0_active: cam_sensor_mclk0_active {
 			/* MCLK 0*/
 			mux {
@@ -819,7 +884,11 @@
 			config {
 				pins = "gpio29";
 				bias-disable; /* No PULL */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
 				drive-strength = <2>; /* 2 MA */
+#endif
 			};
 		};
 
@@ -833,7 +902,11 @@
 			config {
 				pins = "gpio29";
 				bias-pull-down; /* PULL DOWN */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
 				drive-strength = <2>; /* 2 MA */
+#endif
 			};
 		};
 
@@ -847,7 +920,11 @@
 			config {
 				pins = "gpio30";
 				bias-disable; /* No PULL */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
 				drive-strength = <2>; /* 2 MA */
+#endif
 			};
 		};
 
@@ -861,7 +938,11 @@
 			config {
 				pins = "gpio30";
 				bias-pull-down; /* PULL DOWN */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
 				drive-strength = <2>; /* 2 MA */
+#endif
 			};
 		};
 
@@ -875,7 +956,11 @@
 			config {
 				pins = "gpio31";
 				bias-disable; /* No PULL */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
 				drive-strength = <2>; /* 2 MA */
+#endif
 			};
 		};
 
@@ -889,7 +974,11 @@
 			config {
 				pins = "gpio31";
 				bias-pull-down; /* PULL DOWN */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
 				drive-strength = <2>; /* 2 MA */
+#endif
 			};
 		};
 
@@ -903,7 +992,11 @@
 			config {
 				pins = "gpio32";
 				bias-disable; /* No PULL */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
 				drive-strength = <2>; /* 2 MA */
+#endif
 			};
 		};
 
@@ -917,10 +1010,43 @@
 			config {
 				pins = "gpio32";
 				bias-pull-down; /* PULL DOWN */
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+				drive-strength = <6>; /* 6 MA */
+#else
+				drive-strength = <2>; /* 2 MA */
+#endif
+			};
+		};
+
+#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+		cam_ois_vdd_active: cam_ois_vdd_active {
+			/*OIS VDD*/
+			mux {
+				pins = "gpio33";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio33";
+				bias-disable; /* No PULL */
 				drive-strength = <2>; /* 2 MA */
 			};
 		};
 
+		cam_ois_vdd_suspend: cam_ois_vdd_suspend {
+			/*OIS VDD*/
+			mux {
+				pins = "gpio33";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio33";
+				bias-pull-down; /* PULL DOWN */
+				drive-strength = <2>; /* 2 MA */
+			};
+		};
+#else
 		cam_sensor_mclk4_active: cam_sensor_mclk4_active {
 			/* MCLK 4*/
 			mux {
@@ -948,6 +1074,7 @@
 				drive-strength = <2>; /* 2 MA */
 			};
 		};
+#endif
 
 		cam_sensor_rear0_reset_active: cam_sensor_rear0_reset_active {
 			/* RESET0 */
@@ -1211,6 +1338,7 @@
 		};
 
 		pm8008_active: pm8008_active {
+#ifndef CONFIG_ARCH_SONY_ZAMBEZI
 			mux {
 				pins = "gpio58";
 				function = "gpio";
@@ -1222,6 +1350,7 @@
 				output-high;
 				drive-strength = <2>;
 			};
+#endif
 		};
 	};
 };
