@@ -2,7 +2,7 @@
 # Nxp SPi protocol (SPI) devices
 #
 
-config NXP_P73_DEVICES
+config NXP_P73v1_DEVICES
         tristate "Nxp P73 secure element protocol driver (SPI) devices"
         depends on SPI && NFC_SN1X0_DEVICES
 	---help---

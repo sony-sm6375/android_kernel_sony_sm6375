@@ -250,7 +250,7 @@ static ssize_t fts_charger_mode_store(
 	FTS_DEBUG("charger mode:%d", ts_data->glove_mode);
 	return count;
 }
-int fts_ex_mode_charger()
+int fts_ex_mode_charger(void)
 {
 	int ret = 0;
 		if (is_tp_on() && TPcharger) {

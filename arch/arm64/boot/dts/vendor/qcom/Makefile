@@ -194,6 +194,8 @@ dtb-$(CONFIG_ARCH_BLAIR) += blair-rumi.dtb \
 endif
 endif
 
+endif
+
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
 clean-files	:= *.dtb *.dtbo

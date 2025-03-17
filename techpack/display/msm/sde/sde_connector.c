@@ -138,7 +138,9 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (brightness > c_conn->thermal_max_brightness)
 		brightness = c_conn->thermal_max_brightness;
 
-	display->panel->bl_config.brightness = brightness;
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
+		dsi_display->panel->bl_config.brightness = brightness;
+	}
 	/* map UI brightness into driver backlight level with rounding */
 	bl_lvl = mult_frac(brightness, bl_max_level, brightness_max_level);
 

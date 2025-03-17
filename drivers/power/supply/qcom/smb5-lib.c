@@ -48,7 +48,7 @@
 	&& (!chg->typec_legacy || chg->typec_legacy_use_rp_icl))
 
 static bool charger_tp;
-bool is_tp_on()
+bool is_tp_on(void)
 {
 	return charger_tp;
 }
