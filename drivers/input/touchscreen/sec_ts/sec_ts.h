@@ -9,6 +9,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+/*
+ * NOTE: This file has been modified by Sony Corporation.
+ * Modifications are Copyright 2021 Sony Corporation,
+ * and licensed under the license of the file.
+ */
 
 #ifndef __SEC_TS_H__
 #define __SEC_TS_H__
@@ -323,6 +328,10 @@
 #define SEC_TS_CMD_DEAD_ZONE		0xAC
 #define SEC_TS_CMD_LANDSCAPE_MODE	0xAD
 
+/* Grip rejection */
+#define SEC_TS_CMD_GRIP_REJECTION	0xBF
+#define SEC_TS_GRIP_REJECTION_BORDER_NUM	4
+
 #ifdef TP_DEBUG_LOG
 #define	TP_LOG_DBG(fmt, arg...)	printk("[SEC_TS][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #else
@@ -449,6 +458,25 @@ enum tsp_hw_parameter {
 	TSP_COMM_ERR_COUNT	= 5,
 	TSP_MODULE_ID		= 6,
 };
+
+enum corners {		/* portrait,		landscape,	seascape     */
+    CORNER_0 = 0,	/* Upper left,		Bottom left,	Upper right  */
+    CORNER_1 = 1,	/* Bottom left,  	Bottom right,	Upper left   */
+    CORNER_2 = 2,	/* Upper right,		Upper left,	Bottom right */
+    CORNER_3 = 3,	/* Bottom right,	Upper right,	Bottom left  */
+};
+
+enum range_changer {
+    TARGET_LANDSCAPE_BOTTOM_LEFT = CORNER_0,
+    TARGET_LANDSCAPE_BOTTOM_RIGHT = CORNER_1,
+    TARGET_LANDSCAPE_UPPER_LEFT = CORNER_2,
+    TARGET_LANDSCAPE_UPPER_RIGHT = CORNER_3,
+    TARGET_PORTRAIT_BOTTOM_LEFT = 4,	/* Bottom left  */
+    TARGET_PORTRAIT_BOTTOM_RIGHT = 5,	/* Bottom right */
+};
+
+#define SEC_TS_GRIP_REJECTION_BORDER_NUM_PORTRAIT	2
+#define SEC_TS_GRIP_REJECTION_BORDER_NUM_LANDSCAPE	SEC_TS_GRIP_REJECTION_BORDER_NUM
 
 #define TEST_MODE_MIN_MAX		false
 #define TEST_MODE_ALL_NODE		true
@@ -619,6 +647,7 @@ struct sec_ts_data {
 	struct mutex i2c_mutex;
 	struct mutex eventlock;
 	struct mutex modechange;
+	struct mutex irq_mutex;
 
 	struct delayed_work work_read_info;
 #ifdef USE_POWER_RESET_WORK
@@ -703,6 +732,15 @@ struct sec_ts_data {
 	u8 pressure_user_level;
 #endif
 	int debug_flag;
+	bool landscape;
+	bool report_flag[MAX_SUPPORT_TOUCH_COUNT + MAX_SUPPORT_HOVER_COUNT];
+	u16 saved_data_x[10];
+	u16 saved_data_y[10];
+	int rejection_mode;
+	bool irq_status;
+
+	u32 circle_range_p[SEC_TS_GRIP_REJECTION_BORDER_NUM_PORTRAIT];
+	u32 circle_range_l[SEC_TS_GRIP_REJECTION_BORDER_NUM_LANDSCAPE];
 
 	int (*sec_ts_i2c_write)(struct sec_ts_data *ts, u8 reg, u8 *data, int len);
 	int (*sec_ts_i2c_read)(struct sec_ts_data *ts, u8 reg, u8 *data, int len);
@@ -778,6 +816,7 @@ typedef struct {
 } fw_chunk;
 
 int sec_ts_power(void *data, bool on);
+int sec_ts_get_power_status(void *data);
 int sec_ts_stop_device(struct sec_ts_data *ts);
 int sec_ts_start_device(struct sec_ts_data *ts);
 int sec_ts_set_lowpowermode(struct sec_ts_data *ts, u8 mode);
@@ -809,6 +848,8 @@ int execute_selftest(struct sec_ts_data *ts, bool save_result);
 void sec_ts_run_rawdata_all(struct sec_ts_data *ts, bool full_read);
 
 void sec_ts_reinit(struct sec_ts_data *ts);
+
+void sec_ts_set_irq(struct sec_ts_data *ts, bool enable);
 
 #if (1)//!defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
 

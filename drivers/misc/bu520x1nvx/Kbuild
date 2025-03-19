@@ -1,5 +1,1 @@
 obj-m := bu520x1nvx.o
-
-ifneq ($(CONFIG_ARCH_LAHAINA), y)
-  include $(HALL_SENSOR_ROOT)/config/waipio.mk
-endif

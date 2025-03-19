@@ -9,6 +9,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+/*
+ * NOTE: This file has been modified by Sony Corporation.
+ * Modifications are Copyright 2021 Sony Corporation,
+ * and licensed under the license of the file.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -104,7 +109,8 @@ static ssize_t sec_ts_regread_show(struct device *dev, struct device_attribute *
 		return -EIO;
 	}
 
-	disable_irq(ts->client->irq);
+	pr_err("***%s\n", __func__);
+	sec_ts_set_irq(ts, false);
 
 	mutex_lock(&ts->device_mutex);
 
@@ -142,7 +148,8 @@ i2c_err:
 malloc_err:
 	mutex_unlock(&ts->device_mutex);
 	lv1_readremain = 0;
-	enable_irq(ts->client->irq);
+	pr_err("***%s\n", __func__);
+	sec_ts_set_irq(ts, true);
 
 	return lv1_readsize;
 }
@@ -194,7 +201,8 @@ static ssize_t sec_ts_enter_recovery_store(struct device *dev, struct device_att
 	}
 
 	if (on == 1) {
-		disable_irq(ts->client->irq);
+		pr_err("***%s\n", __func__);
+		sec_ts_set_irq(ts, false);
 		gpio_free(pdata->irq_gpio);
 
 		input_info(true, &ts->client->dev, "%s: gpio free\n", __func__);
@@ -236,7 +244,8 @@ static ssize_t sec_ts_enter_recovery_store(struct device *dev, struct device_att
 			input_err(true, &ts->client->dev, "%s: fail to write AFE_CAL\n", __func__);
 
 		sec_ts_delay(1000);
-		enable_irq(ts->client->irq);
+		pr_err("***%s\n", __func__);
+		sec_ts_set_irq(ts, true);
 	}
 
 	sec_ts_read_information(ts);
