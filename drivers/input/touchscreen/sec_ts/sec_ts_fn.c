@@ -9,6 +9,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+/*
+ * NOTE: This file has been modified by Sony Corporation.
+ * Modifications are Copyright 2021 Sony Corporation,
+ * and licensed under the license of the file.
+ */
 
 #include "sec_ts.h"
 #include "sec_cmd.h"
@@ -59,12 +64,15 @@ static void set_lowpower_mode(void *device_data);
 static void set_wirelesscharger_mode(void *device_data);
 static void spay_enable(void *device_data);
 static void aod_enable(void *device_data);
+static void touch_enable_irq(void *device_data);
 static void set_grip_data(void *device_data);
 static void dex_enable(void *device_data);
 static void brush_enable(void *device_data);
 static void set_touchable_area(void *device_data);
 static void set_log_level(void *device_data);
 static void debug(void *device_data);
+static void range_changer(void *device_data);
+static void game_enhancer_grip_rejection(void *device_data);
 static void not_support_cmd(void *device_data);
 
 static void sec_ts_print_frame(struct sec_ts_data *ts, short *min, short *max);
@@ -117,12 +125,15 @@ static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("set_wirelesscharger_mode", set_wirelesscharger_mode),},
 	{SEC_CMD("spay_enable", spay_enable),},
 	{SEC_CMD("aod_enable", aod_enable),},
+	{SEC_CMD("touch_enable_irq", touch_enable_irq),},
 	{SEC_CMD("set_grip_data", set_grip_data),},
 	{SEC_CMD("dex_enable", dex_enable),},
 	{SEC_CMD("brush_enable", brush_enable),},
 	{SEC_CMD("set_touchable_area", set_touchable_area),},
 	{SEC_CMD("set_log_level", set_log_level),},
 	{SEC_CMD("debug", debug),},
+	{SEC_CMD("range_changer", range_changer),},
+	{SEC_CMD("game_enhancer_grip_rejection", game_enhancer_grip_rejection),},
 	{SEC_CMD("not_support_cmd", not_support_cmd),},
 };
 
@@ -323,13 +334,19 @@ static ssize_t read_module_id_show(struct device *dev,
 static ssize_t read_vendor_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
+	unsigned int count = 0;
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 	unsigned char buffer[10] = { 0 };
 
 	snprintf(buffer, 5, ts->plat_data->firmware_name + 8);
-
-	return snprintf(buf, SEC_CMD_BUF_SIZE, "LSI_%s", buffer);
+	count += snprintf(buf + count, SEC_CMD_BUF_SIZE, "LSI_%s", buffer);
+	count += snprintf(buf + count, SEC_CMD_BUF_SIZE, "  FW_Version: %02X.%02X.%02X.%02X\n",
+			  ts->plat_data->img_version_of_ic[0],
+			  ts->plat_data->img_version_of_ic[1],
+			  ts->plat_data->img_version_of_ic[2],
+			  ts->plat_data->img_version_of_ic[3]);
+	return count;
 }
 
 static ssize_t clear_checksum_store(struct device *dev,
@@ -824,23 +841,23 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 		/* excute selftest for real cap offset data, because real cap data is not memory data in normal touch. */
 		char para = TO_TOUCH_MODE;
 
-		disable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, false);
 
 		ret = execute_selftest(ts, save_result);
 		if (ret < 0) {
 			input_err(true, &ts->client->dev, "%s: execute_selftest failed\n", __func__);
-			enable_irq(ts->client->irq);
+			sec_ts_set_irq(ts, true);
 			goto ErrorRelease;
 		}
 
 		ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SET_POWER_MODE, &para, 1);
 		if (ret < 0) {
 			input_err(true, &ts->client->dev, "%s: Set rawdata type failed\n", __func__);
-			enable_irq(ts->client->irq);
+			sec_ts_set_irq(ts, true);
 			goto ErrorRelease;
 		}
 
-		enable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, true);
 	}
 
 	/* read data */
@@ -1003,20 +1020,20 @@ static int sec_ts_read_channel(struct sec_ts_data *ts, u8 type,
 		 * because real cap data is not memory data in normal touch.
 		 */
 		char para = TO_TOUCH_MODE;
-		disable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, false);
 		ret = execute_selftest(ts, save_result);
 		if (ret < 0) {
 			input_err(true, &ts->client->dev, "%s: execute_selftest failed!\n", __func__);
-			enable_irq(ts->client->irq);
+			sec_ts_set_irq(ts, true);
 			goto err_read_data;
 		}
 		ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SET_POWER_MODE, &para, 1);
 		if (ret < 0) {
 			input_err(true, &ts->client->dev, "%s: set rawdata type failed!\n", __func__);
-			enable_irq(ts->client->irq);
+			sec_ts_set_irq(ts, true);
 			goto err_read_data;
 		}
-		enable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, true);
 		/* end */
 	}
 	/* read data */
@@ -1236,7 +1253,7 @@ static int sec_ts_read_rawp2p_data(struct sec_ts_data *ts,
 	input_info(true, &ts->client->dev, "%s: %d, %s\n",
 			__func__, mode->type, mode->allnode ? "ALL" : "");
 
-	disable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, false);
 
 	ret = sec_ts_p2p_tmode(ts);
 	if (ret < 0) {
@@ -1295,14 +1312,14 @@ static int sec_ts_read_rawp2p_data(struct sec_ts_data *ts,
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
 out_rawdata:
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 	kfree(buff);
 
 	return ret;
 error_test_fail:
 error_tmode_fail:
 	kfree(buff);
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 error_alloc_mem:
 error_power_state:
 	if (!sec)
@@ -1807,7 +1824,7 @@ static void get_checksum_data(void *device_data)
 		goto err;
 	}
 
-	disable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, false);
 
 	ts->plat_data->power(ts, false);
 	ts->power_status = SEC_TS_STATE_POWER_OFF;
@@ -1819,7 +1836,7 @@ static void get_checksum_data(void *device_data)
 
 	ret = sec_ts_wait_for_ready(ts, SEC_TS_ACK_BOOT_COMPLETE);
 	if (ret < 0) {
-		enable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, true);
 		input_err(true, &ts->client->dev, "%s: boot complete failed\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		goto err;
@@ -1827,7 +1844,7 @@ static void get_checksum_data(void *device_data)
 
 	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_FIRMWARE_INTEGRITY, &data[0], 1);
 	if (ret < 0 || (data[0] != 0x80)) {
-		enable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, true);
 		input_err(true, &ts->client->dev, "%s: firmware integrity failed, ret:%d, data:%X\n",
 				__func__, ret, data[0]);
 		snprintf(buff, sizeof(buff), "%s", "NG");
@@ -1836,7 +1853,7 @@ static void get_checksum_data(void *device_data)
 
 	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_BOOT_STATUS, &data[1], 1);
 	if (ret < 0 || (data[1] != SEC_TS_STATUS_APP_MODE)) {
-		enable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, true);
 		input_err(true, &ts->client->dev, "%s: boot status failed, ret:%d, data:%X\n", __func__, ret, data[0]);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		goto err;
@@ -1844,7 +1861,7 @@ static void get_checksum_data(void *device_data)
 
 	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_TS_STATUS, &data[2], 4);
 	if (ret < 0 || (data[3] == TOUCH_SYSTEM_MODE_FLASH)) {
-		enable_irq(ts->client->irq);
+		sec_ts_set_irq(ts, true);
 		input_err(true, &ts->client->dev, "%s: touch status failed, ret:%d, data:%X\n", __func__, ret, data[3]);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		goto err;
@@ -1852,7 +1869,7 @@ static void get_checksum_data(void *device_data)
 
 	sec_ts_reinit(ts);
 
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 
 	input_err(true, &ts->client->dev, "%s: data[0]:%X, data[1]:%X, data[3]:%X\n", __func__, data[0], data[1], data[3]);
 
@@ -2248,7 +2265,7 @@ static void run_self_delta_read_all(void *device_data)
  */
 void sec_ts_run_rawdata_all(struct sec_ts_data *ts, bool full_read)
 {
-//#ifdef CONFIG_TOUCHSCREEN_DUMP_MODE	
+//#ifdef CONFIG_TOUCHSCREEN_DUMP_MODE
 	short min, max;
 	int ret, i, read_num;
 	u8 test_type[5] = {TYPE_AMBIENT_DATA, TYPE_DECODED_DATA,
@@ -2343,7 +2360,7 @@ static void run_rawdata_read_all(void *device_data)
 
 	sec_ts_run_rawdata_all(ts, true);
 
-	snprintf(buff, sizeof(buff), "ok");
+	snprintf(buff, sizeof(buff), "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 out:
 //#endif
@@ -2843,7 +2860,7 @@ static void run_trx_short_test(void *device_data)
 	memset(rBuff, 0x00, size);
 	memset(data, 0x00, 32);
 
-	disable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, false);
 
 	input_info(true, &ts->client->dev, "%s: set power mode to test mode\n", __func__);
 	data[0] = 0x02;
@@ -2897,7 +2914,7 @@ static void run_trx_short_test(void *device_data)
 	input_info(true, &ts->client->dev, "%s: Test Result %02X, %02X, %02X, %02X\n",
 			__func__, rBuff[16], rBuff[17], rBuff[18], rBuff[19]);
 
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 
 	memcpy(data, &rBuff[48], 32);
 
@@ -2958,7 +2975,7 @@ test_ok:
 err_trx_short:
 
 	ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SET_POWER_MODE, &para, 1);
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 
 	snprintf(buff, sizeof(buff), "%s", "NG");
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
@@ -3023,7 +3040,7 @@ static void run_force_calibration(void *device_data)
 		goto out_force_cal_before_irq_ctrl;
 	}
 
-	disable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, false);
 
 	rc = sec_ts_execute_force_calibration(ts, OFFSET_CAL_SET);
 	if (rc < 0) {
@@ -3090,7 +3107,7 @@ static void run_force_calibration(void *device_data)
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
 out_force_cal:
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 
 out_force_cal_before_irq_ctrl:
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
@@ -3293,6 +3310,40 @@ static void aod_enable(void *device_data)
 	sec_cmd_set_cmd_exit(sec);
 	return;
 
+NG:
+	snprintf(buff, sizeof(buff), "%s", "NG");
+	sec->cmd_state = SEC_CMD_STATUS_FAIL;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+	sec_cmd_set_cmd_exit(sec);
+}
+
+static void touch_enable_irq(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
+	char buff[SEC_CMD_STR_LEN] = { 0 };
+	int irq_judge;
+
+	sec_cmd_set_default_result(sec);
+	irq_judge = sec->cmd_param[0];
+	input_info(true, &ts->client->dev, "%s: change irq status to %d through sysfs\n", __func__, irq_judge);
+
+	if (!irq_judge) {
+		sec_ts_set_irq(ts, false);
+		input_dbg(true, &ts->client->dev, "irq disabled\n");
+	} else {
+		if (sec_ts_get_power_status(ts) || ts->power_status == SEC_TS_STATE_POWER_OFF) {
+			input_info(true, &ts->client->dev, "cannot irq, panel power off\n");
+			goto NG;
+		}
+		sec_ts_set_irq(ts, true);
+		input_dbg(true, &ts->client->dev, "irq enabled\n");
+	}
+	snprintf(buff, sizeof(buff), "%s", "OK");
+	sec->cmd_state = SEC_CMD_STATUS_OK;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+	sec_cmd_set_cmd_exit(sec);
+	return;
 NG:
 	snprintf(buff, sizeof(buff), "%s", "NG");
 	sec->cmd_state = SEC_CMD_STATUS_FAIL;
@@ -3749,6 +3800,93 @@ static void debug(void *device_data)
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+}
+
+static void update_game_enhancer_grip_rejection_para(struct sec_ts_data *ts, bool portrait, int location, int value)
+{
+	int portrait_offset = TARGET_PORTRAIT_BOTTOM_LEFT;
+	extern u32 radius_portrait[SEC_TS_GRIP_REJECTION_BORDER_NUM_PORTRAIT];
+	extern u32 radius_landscape[SEC_TS_GRIP_REJECTION_BORDER_NUM_LANDSCAPE];
+
+	if (portrait) {
+		radius_portrait[location - portrait_offset] = value;
+		ts->circle_range_p[location - portrait_offset] = value * value;
+	} else {
+		radius_landscape[location] = value;
+		ts->circle_range_l[location] = value * value;
+	}
+}
+
+static void update_grip_rejection_para(struct sec_ts_data *ts, struct sec_cmd_data *sec)
+{
+	extern u32 portrait_buffer[SEC_TS_GRIP_REJECTION_BORDER_NUM];
+	extern u32 landscape_buffer[SEC_TS_GRIP_REJECTION_BORDER_NUM];
+
+	if (sec->cmd_param[0] == 6)
+		memcpy(portrait_buffer, sec->cmd_param + 1, sizeof(portrait_buffer));
+	else
+		memcpy(landscape_buffer, sec->cmd_param + 1, sizeof(landscape_buffer));
+}
+
+static void range_changer(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
+	char buff[SEC_CMD_STR_LEN] = { 0 };
+
+	if (sec->cmd_param[0] < 0 || sec->cmd_param[0] > 7) {
+		input_err(true, &ts->client->dev, "%s: param out of range\n", __func__);
+		goto err_out;
+	}
+
+	if (sec->cmd_param[0] <= TARGET_LANDSCAPE_UPPER_RIGHT)
+		update_game_enhancer_grip_rejection_para(ts, false, sec->cmd_param[0], sec->cmd_param[1]);
+	else if (sec->cmd_param[0] <= TARGET_PORTRAIT_BOTTOM_RIGHT)
+		update_game_enhancer_grip_rejection_para(ts, true, sec->cmd_param[0], sec->cmd_param[1]);
+	else
+		update_grip_rejection_para(ts, sec);
+
+	sec_cmd_set_default_result(sec);
+
+	snprintf(buff, sizeof(buff), "%s", "OK");
+	sec->cmd_state = SEC_CMD_STATUS_OK;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+	return;
+
+err_out:
+	snprintf(buff, sizeof(buff), "%s", "NG");
+	sec->cmd_state = SEC_CMD_STATUS_FAIL;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+}
+
+static void game_enhancer_grip_rejection(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
+	char buff[SEC_CMD_STR_LEN] = { 0 };
+
+	if (sec->cmd_param[0] < 0 || sec->cmd_param[0] > 1) {
+		input_err(true, &ts->client->dev, "%s: param out of range\n", __func__);
+		goto err_out;
+	}
+
+	if (ts->rejection_mode != sec->cmd_param[0]) {
+		ts->rejection_mode = sec->cmd_param[0];
+		memset(ts->saved_data_x, 0, sizeof(ts->saved_data_x));
+		memset(ts->saved_data_y, 0, sizeof(ts->saved_data_y));
+	}
+
+	sec_cmd_set_default_result(sec);
+
+	snprintf(buff, sizeof(buff), "%s", "OK");
+	sec->cmd_state = SEC_CMD_STATUS_OK;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+	return;
+
+err_out:
+	snprintf(buff, sizeof(buff), "%s", "NG");
+	sec->cmd_state = SEC_CMD_STATUS_FAIL;
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 }
 

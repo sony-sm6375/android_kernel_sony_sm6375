@@ -9,14 +9,24 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+/*
+ * NOTE: This file has been modified by Sony Corporation.
+ * Modifications are Copyright 2021 Sony Corporation,
+ * and licensed under the license of the file.
+ */
 
 struct sec_ts_data *tsp_info;
 
 #include "sec_ts.h"
-//#include "linux/hardware_info.h"
+#include "linux/hardware_info.h"
 
 struct sec_ts_data *ts_dup;
 struct drm_panel *sec_ts_active_panel = NULL;
+
+u32 portrait_buffer[SEC_TS_GRIP_REJECTION_BORDER_NUM] = { 0 };
+u32 landscape_buffer[SEC_TS_GRIP_REJECTION_BORDER_NUM] = { 0 };
+u32 radius_portrait[SEC_TS_GRIP_REJECTION_BORDER_NUM_PORTRAIT] = { 0 };
+u32 radius_landscape[SEC_TS_GRIP_REJECTION_BORDER_NUM_LANDSCAPE] = { 0 };
 
 #ifdef USE_POWER_RESET_WORK
 static void sec_ts_reset_work(struct work_struct *work);
@@ -33,6 +43,39 @@ static int sec_ts_dsi_panel_notifier_cb(struct notifier_block *self, unsigned lo
 
 	int sec_ts_read_information(struct sec_ts_data *ts);
 
+void sec_ts_set_irq(struct sec_ts_data *ts, bool enable)
+{
+	if (!mutex_trylock(&ts->irq_mutex)) {
+		input_err(true, &ts->client->dev, "%s: sec_ts_set_irq() is called by two or more threaded at the same time.\n", __func__);
+		mutex_lock(&ts->irq_mutex);
+	}
+
+	if (ts->client->irq) {
+		if (enable && !ts->irq_status) {
+			enable_irq(ts->client->irq);
+			ts->irq_status = true;
+			input_info(true, &ts->client->dev, "Change irq enabled\n");
+		} else if (!enable && ts->irq_status) {
+			disable_irq_nosync(ts->client->irq);
+			ts->irq_status = false;
+			input_info(true, &ts->client->dev, "Change irq was disable\n");
+		} else {
+			input_info(true, &ts->client->dev, "no irq change (%s)\n",
+			     ts->irq_status ? "enable" : "disable");
+		}
+
+		if (ts->irq_status &&
+				irqd_irq_disabled(irq_get_irq_data(ts->client->irq))) {
+				input_err(true, &ts->client->dev, "%s: unexpected irq %d disable! Fixing..\n", __func__, ts->client->irq);
+				enable_irq(ts->client->irq);
+		} else if (!ts->irq_status &&
+				!irqd_irq_disabled(irq_get_irq_data(ts->client->irq))) {
+				input_err(true, &ts->client->dev, "%s: unexpected irq %d enable! Fixing..\n", __func__, ts->client->irq);
+				disable_irq(ts->client->irq);
+		}
+	}
+	mutex_unlock(&ts->irq_mutex);
+}
 int sec_ts_i2c_write(struct sec_ts_data *ts, u8 reg, u8 *data, int len)
 {
 	u8 buf[I2C_WRITE_BUFFER_SIZE + 1];
@@ -538,6 +581,93 @@ void sec_ts_reinit(struct sec_ts_data *ts)
 	return;
 }
 
+void report_touch(struct sec_ts_data *ts, u8 t_id, bool stored)
+{
+	u16 x;
+	u16 y;
+
+	if (stored) {
+		x = ts->saved_data_x[t_id];
+		y = ts->saved_data_y[t_id];
+	} else {
+		x = ts->coord[t_id].x;
+		y = ts->coord[t_id].y;
+	}
+
+	input_mt_slot(ts->input_dev, t_id);
+	input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, 1);
+	input_report_key(ts->input_dev, BTN_TOUCH, 1);
+	input_report_key(ts->input_dev, BTN_TOOL_FINGER, 1);
+
+	input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
+	input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
+	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, ts->coord[t_id].major);
+	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MINOR, ts->coord[t_id].minor);
+	if (ts->plat_data->support_mt_pressure)
+		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, ts->coord[t_id].z);
+
+	if (stored)
+		input_sync(ts->input_dev);
+	return;
+}
+
+static int get_location(struct sec_ts_data *ts, u32 x, u32 y)
+{
+    if (x > ts->plat_data->max_x / 2) {
+		if (y > ts->plat_data->max_y / 2)
+			return CORNER_3;
+		return CORNER_2;
+	} else {
+		if (y > ts->plat_data->max_y / 2)
+			return CORNER_1;
+		return CORNER_0;
+    }
+}
+
+static u32 compute_sum_of_squares(u32 x, u32 y)
+{
+	return x * x + y * y;
+}
+
+static bool check_area(struct sec_ts_data *ts, int location, u32 x, u32 y)
+{
+	if (ts->landscape) {
+		switch (location) {
+		case CORNER_0:
+			break;
+		case CORNER_1:
+			y = ts->plat_data->max_y - y;
+			break;
+		case CORNER_2:
+			x = ts->plat_data->max_x - x;
+			break;
+		case CORNER_3:
+			x = ts->plat_data->max_x - x;
+			y = ts->plat_data->max_y - y;
+			break;
+		default:
+			input_err(true, &ts->client->dev,
+						"%s: failed to find the area \n", __func__);
+			return false;
+		}
+
+		return compute_sum_of_squares(x, y) < ts->circle_range_l[location];
+	} else {
+		if (location == CORNER_1) {
+			y = ts->plat_data->max_y - y;
+			location = CORNER_0;
+		} else if (location == CORNER_3) {
+			x = ts->plat_data->max_x - x;
+			y = ts->plat_data->max_y - y;
+			location = CORNER_1;
+		} else {
+			return false;
+		}
+
+		return compute_sum_of_squares(x, y) < ts->circle_range_p[location];
+	}
+}
+
 #define MAX_EVENT_COUNT 32
 static void sec_ts_read_event(struct sec_ts_data *ts)
 {
@@ -553,6 +683,7 @@ static void sec_ts_read_event(struct sec_ts_data *ts)
 	int curr_pos;
 	int remain_event_count = 0;
 	int pre_ttype = 0;
+	int location;
 
 	if (ts->power_status == SEC_TS_STATE_LPM) {
 		wake_lock_timeout(&ts->wakelock, msecs_to_jiffies(500));
@@ -724,6 +855,7 @@ static void sec_ts_read_event(struct sec_ts_data *ts)
 						|| (ts->coord[t_id].ttype == SEC_TS_TOUCHTYPE_WET)
 						|| (ts->coord[t_id].ttype == SEC_TS_TOUCHTYPE_GLOVE)) {
 
+					location = get_location(ts, ts->coord[t_id].x, ts->coord[t_id].y);
 					if (ts->coord[t_id].action == SEC_TS_COORDINATE_ACTION_RELEASE) {
 
 						do_gettimeofday(&ts->time_released[t_id]);
@@ -777,6 +909,34 @@ static void sec_ts_read_event(struct sec_ts_data *ts)
 						ts->touch_count++;
 						ts->all_finger_count++;
 
+						if (ts->rejection_mode > 0) {
+							if (check_area(ts, location, ts->coord[t_id].x, ts->coord[t_id].y)) {
+								ts->saved_data_x[t_id] = ts->coord[t_id].x;
+								ts->saved_data_y[t_id] = ts->coord[t_id].y;
+								goto skip_process;
+							}
+						} else {
+							if (ts->landscape) {
+									if ((ts->coord[t_id].x < landscape_buffer[0] || ts->coord[t_id].x > ts->plat_data->max_x - landscape_buffer[0]) && (ts->coord[t_id].y < landscape_buffer[1] || ts->coord[t_id].y > ts->plat_data->max_y - landscape_buffer[1])) {
+										if (!ts->report_flag[t_id]) {
+											ts->saved_data_x[t_id] = ts->coord[t_id].x;
+											ts->saved_data_y[t_id] = ts->coord[t_id].y;
+											goto skip_process;
+										}
+									} else
+										ts->report_flag[t_id] = true;
+								} else {
+									if ((ts->coord[t_id].x < portrait_buffer[0] || ts->coord[t_id].x > ts->plat_data->max_x - portrait_buffer[0]) && (ts->coord[t_id].y > ts->plat_data->max_y - portrait_buffer[1])) {
+										if (!ts->report_flag[t_id]) {
+											ts->saved_data_x[t_id] = ts->coord[t_id].x;
+											ts->saved_data_y[t_id] = ts->coord[t_id].y;
+											goto skip_process;
+										}
+									} else
+										ts->report_flag[t_id] = true;
+								}
+						}
+
 						ts->max_z_value = max((unsigned int)ts->coord[t_id].z, ts->max_z_value);
 						ts->min_z_value = min((unsigned int)ts->coord[t_id].z, ts->min_z_value);
 						ts->sum_z_value += (unsigned int)ts->coord[t_id].z;
@@ -819,6 +979,38 @@ static void sec_ts_read_event(struct sec_ts_data *ts)
 								ts->coord[t_id].ttype, ts->touch_noise_status);
 #endif
 					} else if (ts->coord[t_id].action == SEC_TS_COORDINATE_ACTION_MOVE) {
+						if (ts->rejection_mode > 0) {
+							if (check_area(ts, location, ts->coord[t_id].x, ts->coord[t_id].y))
+								goto skip_process;
+							if (!ts->report_flag[t_id]) {
+								report_touch(ts, t_id, true);
+								ts->report_flag[t_id] = true;
+							}
+						} else {
+							if (ts->landscape) {
+								if ((ts->coord[t_id].x < landscape_buffer[0] || ts->coord[t_id].x > ts->plat_data->max_x - landscape_buffer[0]) && (ts->coord[t_id].y < landscape_buffer[1] || ts->coord[t_id].y > ts->plat_data->max_y - landscape_buffer[1])) {
+									if (!ts->report_flag[t_id])
+										goto skip_process;
+								} else if ((ts->coord[t_id].x > landscape_buffer[2] && ts->coord[t_id].x < ts->plat_data->max_x - landscape_buffer[2]) || (ts->coord[t_id].y > landscape_buffer[3] && ts->coord[t_id].y < ts->plat_data->max_y - landscape_buffer[3])) {
+									if (!ts->report_flag[t_id]) {
+										report_touch(ts, t_id, true);
+										ts->report_flag[t_id] = true;
+									}
+								} else if (!ts->report_flag[t_id])
+								goto skip_process;
+							} else {
+								if ((ts->coord[t_id].x < portrait_buffer[0] || ts->coord[t_id].x > ts->plat_data->max_x - portrait_buffer[0]) && (ts->coord[t_id].y > ts->plat_data->max_y - portrait_buffer[1])) {
+									if (!ts->report_flag[t_id])
+										goto skip_process;
+								} else if ((ts->coord[t_id].x > portrait_buffer[2] && ts->coord[t_id].x < ts->plat_data->max_x - portrait_buffer[2]) || (ts->coord[t_id].y < ts->plat_data->max_y - portrait_buffer[3])) {
+									if (!ts->report_flag[t_id]) {
+										report_touch(ts, t_id, true);
+										ts->report_flag[t_id] = true;
+									}
+								} else if (!ts->report_flag[t_id])
+								goto skip_process;
+							}
+						}
 						if ((ts->coord[t_id].ttype == SEC_TS_TOUCHTYPE_GLOVE) && !ts->touchkey_glove_mode_status) {
 							ts->touchkey_glove_mode_status = true;
 							input_report_switch(ts->input_dev, SW_GLOVE, 1);
@@ -893,7 +1085,7 @@ static void sec_ts_read_event(struct sec_ts_data *ts)
 					event_buff[3], event_buff[4], event_buff[5]);
 			break;
 		}
-
+skip_process:
 		curr_pos++;
 		remain_event_count--;
 	} while (remain_event_count >= 0);
@@ -1093,6 +1285,32 @@ static int sec_ts_pinctrl_configure(struct sec_ts_data *ts, bool enable)
 
 }
 
+int sec_ts_get_power_status(void *data)
+{
+	struct sec_ts_data *ts = (struct sec_ts_data *)data;
+	const struct sec_ts_plat_data *pdata = ts->plat_data;
+	struct regulator *regulator_dvdd = NULL;
+	int ret = 0;
+
+	regulator_dvdd = regulator_get(NULL, pdata->regulator_dvdd);
+	if (IS_ERR_OR_NULL(regulator_dvdd)) {
+		input_err(true, &ts->client->dev, "%s: Failed to get %s regulator.\n",
+				__func__, pdata->regulator_dvdd);
+		ret = PTR_ERR(regulator_dvdd);
+		goto error;
+	}
+
+	input_err(true, &ts->client->dev, "%s:  dvdd:%s\n", __func__,
+			regulator_is_enabled(regulator_dvdd) ? "on" : "off");
+
+	ret = regulator_is_enabled(regulator_dvdd) ? 0 : 1;
+
+error:
+	regulator_put(regulator_dvdd);
+
+	return ret;
+}
+
 int sec_ts_power(void *data, bool on)
 {
 	struct sec_ts_data *ts = (struct sec_ts_data *)data;
@@ -1142,7 +1360,15 @@ int sec_ts_power(void *data, bool on)
 		// }
 	} else {
 		// regulator_disable(regulator_avdd);
-		gpio_set_value(pdata->avdd_en_gpio, 0);
+                printk("sec_ts: get_stage_adc_mb = %s\n", get_stage_adc_mb());
+
+                if(strstr(get_stage_adc_mb(),"EVT")) {
+                    printk("sec_ts: EVT Mboard, enable avdd when suspend!\n");
+                    gpio_set_value(pdata->avdd_en_gpio, 1);
+                } else {
+                    gpio_set_value(pdata->avdd_en_gpio, 0);
+                }
+
 		sec_ts_delay(4);
 		regulator_disable(regulator_dvdd);
 		gpio_set_value(pdata->reset_gpio, 0);
@@ -1185,73 +1411,75 @@ static int sec_ts_get_active_panel(struct device_node *np)
 	return 0;
 }
 
-	static int sec_ts_parse_dt(struct i2c_client * client)
-	{
-		struct device *dev = &client->dev;
-		struct sec_ts_plat_data *pdata = dev->platform_data;
-		struct device_node *np = dev->of_node;
-		u32 coords[2];
-		int ret = 0;
-		int count = 0;
-		//u32 ic_match_value;
-		int lcdtype = 0;
+static int sec_ts_parse_dt(struct i2c_client * client)
+{
+	struct device *dev = &client->dev;
+	struct sec_ts_plat_data *pdata = dev->platform_data;
+	struct device_node *np = dev->of_node;
+	u32 coords[2];
+	int ret = 0;
+	int count = 0;
+	//u32 ic_match_value;
+	int lcdtype = 0;
+	u32 rejection_buff[SEC_TS_GRIP_REJECTION_BORDER_NUM];
+	u32 portrait_rejection_buff[SEC_TS_GRIP_REJECTION_BORDER_NUM_PORTRAIT];
 
-		/*pdata->tsp_icid = of_get_named_gpio(np, "sec,tsp-icid_gpio", 0);
-		if (gpio_is_valid(pdata->tsp_icid)) {
-			input_info(true, dev, "%s: TSP_ICID : %d\n", __func__, gpio_get_value(pdata->tsp_icid));
-			if (of_property_read_u32(np, "sec,icid_match_value", &ic_match_value)) {
-				input_err( true, dev, "%s: Failed to get icid match value\n", __func__);
-				return -EINVAL;
-			}
-
-			if (gpio_get_value(pdata->tsp_icid) != ic_match_value) {
-				input_err(true, dev, "%s: Do not match TSP_ICID\n",  __func__);
-				return -EINVAL;
-			}
-		} else {
-			input_err(true, dev,  "%s: Failed to get tsp-icid gpio\n", __func__);
-		}*/
-
-		pdata->tsp_vsync =
-			of_get_named_gpio(np, "sec,tsp_vsync_gpio", 0);
-		if (gpio_is_valid(pdata->tsp_vsync))
-			input_info(true, &client->dev, "%s: vsync %s\n", __func__, gpio_get_value(pdata->tsp_vsync) ? "disable" :  "enable");
-
-		pdata->irq_gpio = of_get_named_gpio(np, "sec,irq-gpio", 0);
-		if (gpio_is_valid(pdata->irq_gpio)) {
-			ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN, "sec,tsp_int");
-			if (ret) {
-				input_err( true, &client->dev, "%s: Unable to request tsp_int [%d]\n", __func__, pdata->irq_gpio);
-				return -EINVAL;
-			}
-		} else {
-			input_err(true, &client->dev, "%s: Failed to get irq gpio\n", __func__);
+	/*pdata->tsp_icid = of_get_named_gpio(np, "sec,tsp-icid_gpio", 0);
+	if (gpio_is_valid(pdata->tsp_icid)) {
+		input_info(true, dev, "%s: TSP_ICID : %d\n", __func__, gpio_get_value(pdata->tsp_icid));
+		if (of_property_read_u32(np, "sec,icid_match_value", &ic_match_value)) {
+			input_err( true, dev, "%s: Failed to get icid match value\n", __func__);
 			return -EINVAL;
 		}
 
-		client->irq = gpio_to_irq(pdata->irq_gpio);
-
-		if (of_property_read_u32(np, "sec,irq_type", &pdata->irq_type)) {
-			input_err(true, dev, "%s: Failed to get irq_type property\n", __func__);
-			pdata->irq_type = IRQF_TRIGGER_LOW | IRQF_ONESHOT;
-		} else {
-			input_info(true, dev, "%s: irq_type property:%X, %d\n",  __func__, pdata->irq_type, pdata->irq_type);
+		if (gpio_get_value(pdata->tsp_icid) != ic_match_value) {
+			input_err(true, dev, "%s: Do not match TSP_ICID\n",  __func__);
+			return -EINVAL;
 		}
+	} else {
+		input_err(true, dev,  "%s: Failed to get tsp-icid gpio\n", __func__);
+	}*/
 
-		pdata->reset_gpio = of_get_named_gpio(np, "sec,reset-gpio", 0);
-		if (gpio_is_valid(pdata->reset_gpio)) {
-			ret = gpio_request_one(pdata->reset_gpio, GPIOF_DIR_OUT, "sec_tp_reset");
-			if (ret) {
-				input_err( true, &client->dev, "%s: Unable to request sec_tp_reset [%d]\n", __func__, pdata->reset_gpio);
-			} else {
-				input_err(true, &client->dev, "%s:  Request sec_tp_reset [%d]\n", __func__, pdata->reset_gpio);
-				ret = gpio_direction_output(pdata->reset_gpio, 0);
-			}
-		} else {
-			input_err(true, &client->dev, "%s: Failed to get reset gpio\n", __func__);
+	pdata->tsp_vsync =
+		of_get_named_gpio(np, "sec,tsp_vsync_gpio", 0);
+	if (gpio_is_valid(pdata->tsp_vsync))
+		input_info(true, &client->dev, "%s: vsync %s\n", __func__, gpio_get_value(pdata->tsp_vsync) ? "disable" :  "enable");
+
+	pdata->irq_gpio = of_get_named_gpio(np, "sec,irq-gpio", 0);
+	if (gpio_is_valid(pdata->irq_gpio)) {
+		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN, "sec,tsp_int");
+		if (ret) {
+			input_err( true, &client->dev, "%s: Unable to request tsp_int [%d]\n", __func__, pdata->irq_gpio);
+			return -EINVAL;
 		}
+	} else {
+		input_err(true, &client->dev, "%s: Failed to get irq gpio\n", __func__);
+		return -EINVAL;
+	}
 
-		pdata->avdd_en_gpio = of_get_named_gpio(np, "sec,avdd-en-gpio", 0);
+	client->irq = gpio_to_irq(pdata->irq_gpio);
+
+	if (of_property_read_u32(np, "sec,irq_type", &pdata->irq_type)) {
+		input_err(true, dev, "%s: Failed to get irq_type property\n", __func__);
+		pdata->irq_type = IRQF_TRIGGER_LOW | IRQF_ONESHOT;
+	} else {
+		input_info(true, dev, "%s: irq_type property:%X, %d\n",  __func__, pdata->irq_type, pdata->irq_type);
+	}
+
+	pdata->reset_gpio = of_get_named_gpio(np, "sec,reset-gpio", 0);
+	if (gpio_is_valid(pdata->reset_gpio)) {
+		ret = gpio_request_one(pdata->reset_gpio, GPIOF_DIR_OUT, "sec_tp_reset");
+		if (ret) {
+			input_err( true, &client->dev, "%s: Unable to request sec_tp_reset [%d]\n", __func__, pdata->reset_gpio);
+		} else {
+			input_err(true, &client->dev, "%s:  Request sec_tp_reset [%d]\n", __func__, pdata->reset_gpio);
+			ret = gpio_direction_output(pdata->reset_gpio, 0);
+		}
+	} else {
+		input_err(true, &client->dev, "%s: Failed to get reset gpio\n", __func__);
+	}
+
+	pdata->avdd_en_gpio = of_get_named_gpio(np, "sec,avdd-en-gpio", 0);
 	if (gpio_is_valid(pdata->avdd_en_gpio)) {
 		ret = gpio_request_one(pdata->avdd_en_gpio, GPIOF_DIR_OUT, "avdd_en_gpio");
 		if (ret) {
@@ -1307,9 +1535,30 @@ static int sec_ts_get_active_panel(struct device_node *np)
 		return -EINVAL;
 	}*/
 
+	if (of_property_read_u32_array(np, "sec,rejection_area_portrait", rejection_buff, SEC_TS_GRIP_REJECTION_BORDER_NUM))
+		input_err(true, dev, "%s: grip rejection not supported\n", __func__);
+	else
+		memcpy(portrait_buffer, rejection_buff, sizeof(portrait_buffer));
+
+	if (of_property_read_u32_array(np, "sec,rejection_area_landscape", rejection_buff, SEC_TS_GRIP_REJECTION_BORDER_NUM))
+		input_err(true, dev, "%s: grip rejection not supported\n", __func__);
+	else
+		memcpy(landscape_buffer, rejection_buff, sizeof(landscape_buffer));
+
+	if (of_property_read_u32_array(np, "sec,rejection_area_portrait_ge", portrait_rejection_buff, SEC_TS_GRIP_REJECTION_BORDER_NUM_PORTRAIT))
+		input_err(true, dev, "%s: game enhencer grip rejection not supported\n", __func__);
+	else
+		memcpy(radius_portrait, portrait_rejection_buff, sizeof(radius_portrait));
+
+	if (of_property_read_u32_array(np, "sec,rejection_area_landscape_ge", rejection_buff, SEC_TS_GRIP_REJECTION_BORDER_NUM))
+		input_err(true, dev, "%s: game enhencer grip rejection not supported\n", __func__);
+	else
+		memcpy(radius_landscape, rejection_buff, sizeof(radius_landscape));
+
 	ret = sec_ts_get_active_panel(np);
-	if (ret)
+	if (ret) {
 		return ret;
+	}
 
 	pdata->power = sec_ts_power;
 
@@ -1551,6 +1800,7 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	unsigned char data[5] = { 0 };
 	unsigned char deviceID[5] = { 0 };
 	unsigned char result = 0;
+	int i = 0;
 
 	input_info(true, &client->dev, "%s\n", __func__);
 
@@ -1647,11 +1897,18 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ts->min_z_value = 0xFFFFFFFF;
 	ts->sum_z_value = 0;
 
+	for (i = 0; i < SEC_TS_GRIP_REJECTION_BORDER_NUM; i++) {
+		ts->circle_range_l[i] = radius_landscape[i] * radius_landscape[i];
+		if (i < SEC_TS_GRIP_REJECTION_BORDER_NUM_PORTRAIT)
+			ts->circle_range_p[i] = radius_portrait[i] * radius_portrait[i];
+	}
+
 	mutex_init(&ts->lock);
 	mutex_init(&ts->device_mutex);
 	mutex_init(&ts->i2c_mutex);
 	mutex_init(&ts->eventlock);
 	mutex_init(&ts->modechange);
+	mutex_init(&ts->irq_mutex);
 
 	wake_lock_init(&ts->wakelock, WAKE_LOCK_SUSPEND, "tsp_wakelock");
 	init_completion(&ts->resume_done);
@@ -1681,11 +1938,13 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: failed to read device ID(%d)\n", __func__, ret);
 		goto read_fail;
-	} else {
+	}
+	else {
 		input_info(true, &ts->client->dev,
 				"%s: TOUCH DEVICE ID : %02X, %02X, %02X, %02X, %02X\n", __func__,
 				deviceID[0], deviceID[1], deviceID[2], deviceID[3], deviceID[4]);
 	}
+
 	ret = sec_ts_i2c_read(ts, SEC_TS_READ_FIRMWARE_INTEGRITY, &result, 1);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: failed to integrity check (%d)\n", __func__, ret);
@@ -1807,6 +2066,8 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 #endif
 	sec_ts_fn_init(ts);
 
+	ts->irq_status = true;
+	sec_ts_set_irq(ts, false);
 
 #ifdef SEC_TS_SUPPORT_CUSTOMLIB
 	sec_ts_check_custom_library(ts);
@@ -1827,7 +2088,7 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	ts_dup = ts;
 	ts->probe_done = true;
-	ts->input_closed = false;
+        ts->input_closed = false;
 	/*{ //For hardware info
 	u8 ic_fw_ver[20] ={0};
 
@@ -1848,6 +2109,7 @@ static int sec_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	sec_ts_fn_remove(ts);
 	free_irq(client->irq, ts);
 #endif
+
 err_irq:
 	if (ts->plat_data->support_dex) {
 		input_unregister_device(ts->input_dev_pad);
@@ -1917,7 +2179,7 @@ void sec_ts_unlocked_release_all_finger(struct sec_ts_data *ts)
 					ts->tspicid_val, ts->coord[i].palm_count);
 
 			do_gettimeofday(&ts->time_released[i]);
-			
+
 			if (ts->time_longest < (ts->time_released[i].tv_sec - ts->time_pressed[i].tv_sec))
 				ts->time_longest = (ts->time_released[i].tv_sec - ts->time_pressed[i].tv_sec);
 		}
@@ -1969,7 +2231,7 @@ void sec_ts_locked_release_all_finger(struct sec_ts_data *ts)
 					ts->cal_status, ts->tspid_val, ts->tspicid_val, ts->coord[i].palm_count);
 
 			do_gettimeofday(&ts->time_released[i]);
-			
+
 			if (ts->time_longest < (ts->time_released[i].tv_sec - ts->time_pressed[i].tv_sec))
 				ts->time_longest = (ts->time_released[i].tv_sec - ts->time_pressed[i].tv_sec);
 		}
@@ -2065,7 +2327,7 @@ static void sec_ts_reset_work(struct work_struct *work)
 				data[i * 2 + 3] = (ts->rect_data[i] >> 8) & 0xFF;
 			}
 
-			disable_irq(ts->client->irq);
+			sec_ts_set_irq(ts, false);
 			ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_CUSTOMLIB_WRITE_PARAM, &data[0], 10);
 			if (ret < 0)
 				input_err(true, &ts->client->dev, "%s: Failed to write offset\n", __func__);
@@ -2073,7 +2335,7 @@ static void sec_ts_reset_work(struct work_struct *work)
 			ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_CUSTOMLIB_NOTIFY_PACKET, NULL, 0);
 			if (ret < 0)
 				input_err(true, &ts->client->dev, "%s: Failed to send notify\n", __func__);
-			enable_irq(ts->client->irq);
+			sec_ts_set_irq(ts, true);
 		}
 	}
 	ts->reset_is_on_going = false;
@@ -2093,9 +2355,9 @@ static void sec_ts_read_info_work(struct work_struct *work)
 	input_info(true, &ts->client->dev, "%s\n", __func__);
 
 	/* run self-test */
-	disable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, false);
 	execute_selftest(ts, false);
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 
 	input_info(true, &ts->client->dev, "%s: %02X %02X %02X %02X\n",
 		__func__, ts->ito_test[0], ts->ito_test[1]
@@ -2270,7 +2532,7 @@ static int sec_ts_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ts->work_read_info);
 	flush_delayed_work(&ts->work_read_info);
 
-	disable_irq_nosync(ts->client->irq);
+	sec_ts_set_irq(ts, false);
 	free_irq(ts->client->irq, ts);
 	input_info(true, &ts->client->dev, "%s: irq disabled\n", __func__);
 
@@ -2301,6 +2563,8 @@ static int sec_ts_remove(struct i2c_client *client)
 	ts->input_dev = ts->input_dev_touch;
 	input_mt_destroy_slots(ts->input_dev);
 	input_unregister_device(ts->input_dev);
+
+	mutex_destroy(&ts->irq_mutex);
 
 	ts->input_dev_pad = NULL;
 	ts->input_dev = NULL;
@@ -2334,7 +2598,7 @@ int sec_ts_stop_device(struct sec_ts_data *ts)
 		goto out;
 	}
 
-	disable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, false);
 
 	ts->power_status = SEC_TS_STATE_POWER_OFF;
 	if (ts->input_dev == NULL){
@@ -2456,7 +2720,7 @@ err:
 	if (ret < 0)
 		input_err(true, &ts->client->dev, "%s: fail to write Sense_on\n", __func__);
 
-	enable_irq(ts->client->irq);
+	sec_ts_set_irq(ts, true);
 
 out:
 	mutex_unlock(&ts->device_mutex);
@@ -2591,8 +2855,8 @@ static void __exit sec_ts_exit(void)
 
 MODULE_AUTHOR("Hyobae, Ahn<hyobae.ahn@samsung.com>");
 MODULE_DESCRIPTION("Samsung Electronics TouchScreen driver");
-MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+MODULE_LICENSE("GPL");
 
 late_initcall(sec_ts_init);
 module_exit(sec_ts_exit);
