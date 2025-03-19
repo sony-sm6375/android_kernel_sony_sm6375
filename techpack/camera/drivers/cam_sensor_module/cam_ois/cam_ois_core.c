@@ -15,7 +15,11 @@
 #include "cam_res_mgr_api.h"
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+#include "../cam_ois_dw9781/dw9781_ois.h"
+#else
 #include "../cam_ois_dw9784/dw9784_ois.h"
+#endif
 
 int32_t cam_ois_construct_default_power_setting(
 	struct cam_sensor_power_ctrl_t *power_info)
@@ -700,7 +704,11 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				goto pwr_dwn;
 			}
 		}
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		rc = dw9781_download_ois_fw(o_ctrl);
+#else
 		rc = dw9784_download_open_camera(o_ctrl);
+#endif
 		if(rc < 0){
 			CAM_ERR(CAM_OIS, "Failed OIS init failed");
 			goto pwr_dwn;
@@ -731,8 +739,13 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				goto pwr_dwn;
 			}
 			*/
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+			rc = gyro_offset_calibrtion(o_ctrl);
+			if(rc < 0){
+#else
 			rc = dw9784_gyro_ofs_calibration(o_ctrl);
 			if (rc) {
+#endif
 				CAM_ERR(CAM_OIS, "dw9784 gyro cali failed");
 				goto pwr_dwn;
 			}
@@ -777,7 +790,9 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			CAM_ERR(CAM_OIS, "Cannot apply mode settings");
 			goto end;
 		}
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 		dw9784_ois_status(o_ctrl);
+#endif
 		rc = delete_request(i2c_reg_settings);
 		if (rc < 0) {
 			CAM_ERR(CAM_OIS,
@@ -1043,6 +1058,9 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 
 		if (o_ctrl->cam_ois_state == CAM_OIS_CONFIG) {
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+			dw9781_exit();
+#endif
 			rc = cam_ois_power_down(o_ctrl);
 			if (rc < 0) {
 				CAM_ERR(CAM_OIS, "OIS Power down failed");

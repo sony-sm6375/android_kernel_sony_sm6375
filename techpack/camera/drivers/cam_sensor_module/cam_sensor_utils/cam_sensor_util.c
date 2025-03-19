@@ -2007,6 +2007,29 @@ int cam_sensor_util_init_gpio_pin_tbl(
 		rc = 0;
 	}
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	rc = of_property_read_u32(of_node, "gpio-ois", &val);
+	if (rc != -EINVAL) {
+		if (rc < 0) {
+			CAM_ERR(CAM_SENSOR,
+				"read gpio-ois failed rc %d", rc);
+			goto free_gpio_info;
+		} else if (val >= gpio_array_size) {
+			CAM_ERR(CAM_SENSOR, "gpio-ois invalid %d", val);
+			rc = -EINVAL;
+			goto free_gpio_info;
+		}
+		gpio_num_info->gpio_num[SENSOR_OIS] =
+			gconf->cam_gpio_common_tbl[val].gpio;
+		gpio_num_info->valid[SENSOR_OIS] = 1;
+
+		CAM_DBG(CAM_SENSOR, "gpio-ois %d",
+			gpio_num_info->gpio_num[SENSOR_OIS]);
+	} else {
+		rc = 0;
+	}
+#endif
+
 	return rc;
 
 free_gpio_info:
@@ -2258,6 +2281,7 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
 		case SENSOR_CUSTOM_GPIO2:
+		case SENSOR_OIS:
 			if (no_gpio) {
 				CAM_ERR(CAM_SENSOR, "request gpio failed");
 				goto power_up_failed;
@@ -2414,6 +2438,7 @@ power_up_failed:
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
 		case SENSOR_CUSTOM_GPIO2:
+		case SENSOR_OIS:
 			if (!gpio_num_info)
 				continue;
 			if (!gpio_num_info->valid
@@ -2573,6 +2598,7 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
 		case SENSOR_CUSTOM_GPIO2:
+		case SENSOR_OIS:
 
 			if (!gpio_num_info) {
 				CAM_ERR(CAM_SENSOR, "failed: No gpio");
