@@ -1,7 +1,7 @@
 /******************************************************************************
  * Copyright (C) 2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2013-2021 NXP
- * Copyright 2021 Sony Corporation
+ * Copyright (C) 2013-2022 NXP
+ * Copyright 2022 Sony Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,11 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
-
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#endif
+#endif
 #include "common_ese.h"
 
 /**
@@ -226,8 +230,13 @@ int i2c_write(struct nfc_dev *nfc_dev, const char *buf, size_t count,
 	for (retry_cnt = 1; retry_cnt <= MAX_WRITE_IRQ_COUNT; retry_cnt++) {
 		if (gpio_get_value(nfc_gpio->irq)) {
 			pr_warn("%s: irq high during write, wait\n", __func__);
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+			usleep_range(WRITE_RETRY_WAIT_TIME_US,
+				     WRITE_RETRY_WAIT_TIME_US + 100);
+#else
 			usleep_range(NFC_WRITE_IRQ_WAIT_TIME_US,
 				     NFC_WRITE_IRQ_WAIT_TIME_US + 100);
+#endif
 		} else {
 			break;
 		}
@@ -289,6 +298,13 @@ ssize_t nfc_i2c_dev_write(struct file *filp, const char __user *buf,
 	if (count > MAX_DL_BUFFER_SIZE)
 		count = MAX_DL_BUFFER_SIZE;
 
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+	if (!nfc_dev) {
+		pr_err("%s: device doesn't exist anymore\n", __func__);
+		return -ENODEV;
+	}
+#endif
+
 	mutex_lock(&nfc_dev->write_mutex);
 	if (copy_from_user(nfc_dev->write_kbuf, buf, count)) {
 		pr_err("%s: failed to copy from user space\n", __func__);
@@ -309,6 +325,11 @@ static const struct file_operations nfc_i2c_dev_fops = {
 	.flush = nfc_dev_flush,
 	.release = nfc_dev_close,
 	.unlocked_ioctl = nfc_dev_ioctl,
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = nfc_dev_compat_ioctl,
+#endif
+#endif
 };
 
 int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -316,26 +337,51 @@ int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int ret = 0;
 	struct nfc_dev *nfc_dev = NULL;
 	struct i2c_dev *i2c_dev = NULL;
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+	struct platform_configs *nfc_configs = NULL;
+	struct platform_gpio *nfc_gpio = NULL;
+#else
 	struct platform_configs nfc_configs;
 	struct platform_gpio *nfc_gpio = &nfc_configs.gpio;
+#endif
 
 	pr_debug("%s: enter\n", __func__);
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+	nfc_dev = kzalloc(sizeof(struct nfc_dev), GFP_KERNEL);
+	if (nfc_dev == NULL) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	nfc_configs = &nfc_dev->configs;
+	nfc_gpio = &nfc_configs->gpio;
+#endif
 	/* retrieve details of gpios from dt */
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+	ret = nfc_parse_dt(&client->dev,nfc_configs, PLATFORM_IF_I2C);
+	if (ret) {
+		pr_err("%s: failed to parse dt\n", __func__);
+		goto err_free_nfc_dev;
+	}
+#else
 	ret = nfc_parse_dt(&client->dev, &nfc_configs, PLATFORM_IF_I2C);
 	if (ret) {
 		pr_err("%s: failed to parse dt\n", __func__);
 		goto err;
 	}
-
+#endif
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("%s: need I2C_FUNC_I2C\n", __func__);
 		ret = -ENODEV;
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+		goto err_free_nfc_dev;
+#else
 		goto err;
 	}
 	nfc_dev = kzalloc(sizeof(struct nfc_dev), GFP_KERNEL);
 	if (nfc_dev == NULL) {
 		ret = -ENOMEM;
 		goto err;
+#endif
 	}
 	nfc_dev->read_kbuf = kzalloc(MAX_NCI_BUFFER_SIZE, GFP_DMA | GFP_KERNEL);
 	if (!nfc_dev->read_kbuf) {
@@ -368,6 +414,7 @@ int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto err_free_gpio;
 	}
 	client->irq = ret;
+#if defined(CONFIG_NFC_SN1X0_DEVICES)
 #ifdef HW_COLD_RESET
 	ret = configure_gpio(nfc_gpio->cld_rst, GPIO_OUTPUT);
 	if (ret) {
@@ -376,15 +423,18 @@ int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto err_free_gpio;
 	}
 #endif
+#endif
 	ret = configure_gpio(nfc_gpio->dwl_req, GPIO_OUTPUT);
 	if (ret) {
 		pr_err("%s: unable to request nfc firm downl gpio [%d]\n",
 		       __func__, nfc_gpio->dwl_req);
 	}
 
+#if defined(CONFIG_NFC_SN1X0_DEVICES)
 	/* copy the retrieved gpio details from DT */
 	memcpy(&nfc_dev->configs, &nfc_configs,
 	       sizeof(struct platform_configs));
+#endif
 
 	/* init mutex and queues */
 	init_waitqueue_head(&nfc_dev->read_wq);
@@ -469,12 +519,22 @@ int nfc_i2c_dev_suspend(struct device *device)
 {
 	struct i2c_client *client = to_i2c_client(device);
 	struct nfc_dev *nfc_dev = i2c_get_clientdata(client);
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+	struct i2c_dev *i2c_dev = NULL;
+	if (!nfc_dev) {
+		pr_err("%s: device doesn't exist anymore\n", __func__);
+		return -ENODEV;
+	}
+	i2c_dev = &nfc_dev->i2c_dev;
+#else
 	struct i2c_dev *i2c_dev = &nfc_dev->i2c_dev;
+#endif
 
 	if (device_may_wakeup(&client->dev) && i2c_dev->irq_enabled) {
 		if (!enable_irq_wake(client->irq))
 			i2c_dev->irq_wake_up = true;
 	}
+	pr_debug("%s: irq_wake_up = %d", __func__, i2c_dev->irq_wake_up);
 	return 0;
 }
 
@@ -482,12 +542,22 @@ int nfc_i2c_dev_resume(struct device *device)
 {
 	struct i2c_client *client = to_i2c_client(device);
 	struct nfc_dev *nfc_dev = i2c_get_clientdata(client);
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
+	struct i2c_dev *i2c_dev = NULL;
+	if (!nfc_dev) {
+		pr_err("%s: device doesn't exist anymore\n", __func__);
+		return -ENODEV;
+	}
+	i2c_dev = &nfc_dev->i2c_dev;
+#else
 	struct i2c_dev *i2c_dev = &nfc_dev->i2c_dev;
+#endif
 
 	if (device_may_wakeup(&client->dev) && i2c_dev->irq_wake_up) {
 		if (!disable_irq_wake(client->irq))
 			i2c_dev->irq_wake_up = false;
 	}
+	pr_debug("%s: irq_wake_up = %d", __func__, i2c_dev->irq_wake_up);
 	return 0;
 }
 

@@ -31,7 +31,11 @@
 /* Max device count for this driver */
 #define DEV_COUNT			1
 /* i2c device class */
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
 #define CLASS_NAME			"nxpnfc"
+#else
+#define CLASS_NAME			"nxp-nfc"
+#endif
 
 /* NFC character device name, this will be in /dev/ */
 #define NFC_CHAR_DEV_NAME		"pn553"
@@ -68,8 +72,15 @@
 #define NCI_CMD_RSP_TIMEOUT_MS		(2000)
 /* Time to wait for NFCC to be ready again after any change in the GPIO */
 #define NFC_GPIO_SET_WAIT_TIME_US	(10000)
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
 /* Time to wait before retrying writes */
 #define WRITE_RETRY_WAIT_TIME_US	(3000)
+#else
+/* Time to wait for IRQ low during write 5*3ms */
+#define NFC_WRITE_IRQ_WAIT_TIME_US	(3000)
+/* Time to wait before retrying i2c/I3C writes */
+#define WRITE_RETRY_WAIT_TIME_US	(1000)
+#endif
 /* Time to wait before retrying read for some specific usecases */
 #define READ_RETRY_WAIT_TIME_US		(3500)
 #define NFC_MAGIC			(0xE9)
@@ -83,6 +94,9 @@
 #define DTS_IRQ_GPIO_STR		"nxp,irq"
 #define DTS_VEN_GPIO_STR		"nxp,ven"
 #define DTS_FWDN_GPIO_STR		"nxp,dwld"
+#ifdef HW_COLD_RESET
+#define DTS_CLD_RST_GPIO_STR		"nxp,cold-reset"
+#endif
 
 enum nfcc_ioctl_request {
 	/* NFC disable request with VEN LOW */
@@ -142,6 +156,9 @@ struct platform_gpio {
 	unsigned int irq;
 	unsigned int ven;
 	unsigned int dwl_req;
+#ifdef HW_COLD_RESET
+	unsigned int cld_rst;
+#endif
 };
 
 /* NFC Struct to get all the required configs from DTS */
@@ -198,8 +215,10 @@ struct nfc_dev {
 int nfc_dev_open(struct inode *inode, struct file *filp);
 int nfc_dev_flush(struct file *pfile, fl_owner_t id);
 int nfc_dev_close(struct inode *inode, struct file *filp);
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
 long nfc_dev_compat_ioctl(struct file *pfile, unsigned int cmd,
 		      unsigned long arg);
+#endif
 long nfc_dev_ioctl(struct file *pfile, unsigned int cmd, unsigned long arg);
 int nfc_parse_dt(struct device *dev, struct platform_configs *nfc_configs,
 		 uint8_t interface);
