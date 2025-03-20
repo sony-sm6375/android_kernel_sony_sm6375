@@ -934,12 +934,12 @@ static int sm5038_port_type_set(struct typec_port *port,
 		usbpd_data->typec_data_role, port_type);
 
 	reinit_completion(&usbpd_data->typec_reverse_completion);
-	if (port_type == TYPEC_PORT_DFP) {
+	if (port_type == TYPEC_PORT_SRC) {
 		pr_info("%s : try reversing, from UFP(Sink) to DFP(Source)\n",
 			__func__);
 		usbpd_data->typec_try_state_change = ROLE_SWAP_TYPE;
 		sm5038_rprd_mode_change(usbpd_data, TYPEC_PORT_SRC);
-	} else if (port_type == TYPEC_PORT_UFP) {
+	} else if (port_type == TYPEC_PORT_SNK) {
 		pr_info("%s : try reversing, from DFP(Source) to UFP(Sink)\n",
 			__func__);
 		usbpd_data->typec_try_state_change = ROLE_SWAP_TYPE;
