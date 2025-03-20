@@ -88,7 +88,7 @@
 	qcom,vdd-io-voltage-level = <1800000 2960000>;
 	qcom,vdd-io-current-level = <0 22000>;
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	cd-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
 #else
 	cd-gpios = <&tlmm 94 GPIO_ACTIVE_LOW>;
@@ -123,7 +123,7 @@
 	status = "ok";
 };
 
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 &qupv3_se0_i2c {
 	status = "ok";
 	#address-cells = <1>;
@@ -156,7 +156,7 @@
 };
 
 &wsa881x_i2c_e {
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	status = "disabled";
 #else
 	status = "ok";
@@ -183,18 +183,34 @@
 		"Analog Mic2", "MIC BIAS2",
 		"AMIC3", "Analog Mic3",
 		"Analog Mic3", "MIC BIAS3",
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		"AMIC4", "Analog Mic4",
 		"Analog Mic4", "MIC BIAS3",
 #endif
 		"TX DMIC0", "Digital Mic0",
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		"TX DMIC0", "MIC BIAS3",
+#else
 		"TX DMIC0", "MIC BIAS1",
+#endif
 		"TX DMIC1", "Digital Mic1",
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		"TX DMIC1", "MIC BIAS3",
+#else
 		"TX DMIC1", "MIC BIAS1",
+#endif
 		"TX DMIC2", "Digital Mic2",
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		"TX DMIC2", "MIC BIAS1",
+#else
 		"TX DMIC2", "MIC BIAS3",
+#endif
 		"TX DMIC3", "Digital Mic3",
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		"TX DMIC3", "MIC BIAS1",
+#else
 		"TX DMIC3", "MIC BIAS3",
+#endif
 		"IN1_HPHL", "HPHL_OUT",
 		"IN2_HPHR", "HPHR_OUT",
 		"IN3_AUX", "AUX_OUT",
@@ -202,7 +218,7 @@
 		"RX_TX DEC1_INP", "TX DEC1 MUX",
 		"RX_TX DEC2_INP", "TX DEC2 MUX",
 		"RX_TX DEC3_INP", "TX DEC3 MUX",
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		"SpkrMono WSA_IN", "AUX",
 #endif
 		"TX SWR_INPUT", "WCD_TX_OUTPUT",
@@ -226,13 +242,13 @@
 	qcom,cdc-dmic01-gpios = <&cdc_dmic01_gpios>;
 	qcom,cdc-dmic23-gpios = <&cdc_dmic23_gpios>;
 	asoc-codec  = <&stub_codec>, <&bolero>,
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 		      <&wcd937x_codec>;
 #else
 		      <&wcd937x_codec>, <&wsa881x_i2c_e>;
 #endif
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 			   "wcd937x_codec";
 #else
 			   "wcd937x_codec", "wsa-codec0";
@@ -253,7 +269,7 @@
 			label = "volume_up";
 			gpios = <&pmr735a_gpios 1 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 			linux,code = <KEY_VOLUMEDOWN>;
 #else
 			linux,code = <KEY_VOLUMEUP>;
@@ -263,10 +279,29 @@
 			linux,can-disable;
 		};
 	};
+
+#ifdef CONFIG_ARCH_SONY_MURRAY
+	sony_ext_uim_ctrl {
+		compatible = "sony,ext-uim-ctrl";
+		uim2_detect_en_gpio = <&tlmm 85 GPIO_ACTIVE_HIGH>;
+	};
+
+	bu520x1nvx {
+		compatible = "rohm,bu520x1nvx";
+
+		acc_cover {
+			label = "lid";
+			gpios = <&tlmm 99 0x1>;
+			lid-pin = <1>;
+			open-debounce-interval = <120>;
+			close-debounce-interval = <300>;
+		};
+	};
+#endif
 };
 
 &thermal_zones {
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 	quiet-therm-step {
 		polling-delay-passive = <2000>;
 		polling-delay = <0>;
@@ -528,6 +563,9 @@
 		*/
 		panel = <&dsi_samsung_amoled_cmd>;
 	};
+#elif defined(CONFIG_ARCH_SONY_MURRAY)
+	status = "okay";
+	qcom,i2c-touch-active="sec,sec_ts";
 
 	sec_ts@48 {
 		compatible = "sec,sec_ts";
@@ -592,7 +630,7 @@
 #endif
 };
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 &usb0 {
 	dwc3@4e00000 {
 		/delete-property/ snps,has-lpm-erratum;
@@ -613,8 +651,13 @@
 		awinic,red {
 			awinic,name = "red";
 			awinic,id = <0>;
+#ifdef CONFIG_ARCH_SONY_MURRAY
+			awinic,imax = <0>;
+			awinic,led-current = <12>;
+#else
 			awinic,imax = <2>;
 			awinic,led-current = <3>;
+#endif
 			awinic,max-brightness = <255>;
 			awinic,rise-time-ms = <6>;
 			awinic,hold-time-ms = <0>;
@@ -625,8 +668,13 @@
 		awinic,green {
 			awinic,name = "green";
 			awinic,id = <1>;
+#ifdef CONFIG_ARCH_SONY_MURRAY
+			awinic,imax = <0>;
+			awinic,led-current = <12>;
+#else
 			awinic,imax = <2>;
 			awinic,led-current = <3>;
+#endif
 			awinic,max-brightness = <255>;
 			awinic,rise-time-ms = <6>;
 			awinic,hold-time-ms = <0>;
@@ -637,8 +685,13 @@
 		awinic,blue {
 			awinic,name = "blue";
 			awinic,id = <2>;
+#ifdef CONFIG_ARCH_SONY_MURRAY
+			awinic,imax = <0>;
+			awinic,led-current = <12>;
+#else
 			awinic,imax = <2>;
 			awinic,led-current = <3>;
+#endif
 			awinic,max-brightness = <255>;
 			awinic,rise-time-ms = <6>;
 			awinic,hold-time-ms = <0>;
@@ -650,6 +703,6 @@
 };
 
 #include "camera/blair-camera-sensor-qrd.dtsi"
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 #include "camera/wl2868c.dtsi"
 #endif
