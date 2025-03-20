@@ -31,6 +31,10 @@
 				3500000 3000000 2500000 2000000 1500000
 				1000000 500000>;
 			qcom,hvdcp2-max-icl-ua = <2000000>;
+#ifdef CONFIG_ARCH_SONY_MURRAY
+			qcom,fcc-max-ua = <3300000>;
+			qcom,otg-cl-ua = <1500000>;
+#endif
 
 			qcom,chgr@1000 {
 				reg = <0x1000>;

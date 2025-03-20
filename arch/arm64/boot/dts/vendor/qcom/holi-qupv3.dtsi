@@ -335,7 +335,11 @@
 #ifdef CONFIG_ARCH_SONY_ZAMBEZI
 		status = "ok";
 #else
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		status = "okay";
+#else
 		status = "disabled";
+#endif
 #endif
 	};
 

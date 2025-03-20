@@ -13,7 +13,7 @@
 #include "dsi-panel-nt36672e-fhd-plus-120-video.dtsi"
 #include "dsi-panel-nt36672e-fhd-plus-144-video.dtsi"
 #include "dsi-panel-nt36672e-fhd-plus-60hz-video.dtsi"
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 #include "dsi-panel-samsung-amoled-fhd-cmd.dtsi"
 #endif
 #include <dt-bindings/clock/mdss-10nm-pll-clk.h>
@@ -199,7 +199,7 @@
 		qcom,dsi-phy = <&mdss_dsi_phy0>;
 
 		qcom,mdp = <&mdss_mdp>;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 		qcom,dsi-default-panel = <&dsi_samsung_amoled_cmd>;
 #else
 		qcom,dsi-default-panel = <&dsi_rm69299_visionox_amoled_video>;
@@ -244,7 +244,7 @@
 	};
 };
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 &dsi_samsung_amoled_cmd {
 	//qcom,dsi-supported-dfps-list = <60 55 48>;
 	//qcom,mdss-dsi-pan-enable-dynamic-fps;

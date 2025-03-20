@@ -339,13 +339,17 @@
 #endif
 
 &qupv3_se10_i2c {
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	aw882xx_smartpa@34 {
 		compatible = "awinic,aw882xx_smartpa";
 		reg = <0x34>;
 		irq-gpio = <&tlmm 60 0>;
 		dc-flag = <0>;
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		sound-channel = <0>;
+#else
 		sound-channel = <1>;
+#endif
 		aw-tx-topo-id = <0x1000ff00>;
 		aw-rx-topo-id = <0x1000ff01>;
 		aw-tx-port-id = <0x1003>;
@@ -358,7 +362,7 @@
 #endif
 
 	wsa881x_i2c_e: wsa881x-i2c-codec@e {
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 		status = "disabled";
 #endif
 		compatible = "qcom,wsa881x-i2c-codec";
@@ -375,7 +379,7 @@
 	};
 
 	wsa881x_i2c_44: wsa881x-i2c-codec@44 {
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 		status = "disabled";
 #endif
 		compatible = "qcom,wsa881x-i2c-codec";
@@ -420,7 +424,7 @@
 
 	wsa881x_analog_reset_gpio: wsa_reset_gpio {
 		compatible = "qcom,msm-cdc-pinctrl";
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&spkr_2_sd_n_active>;
 		pinctrl-1 = <&spkr_2_sd_n_sleep>;
@@ -484,7 +488,7 @@
 		#clock-cells = <1>;
 	};
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	cdc_sec_mi2s_gpios: msm_cdc_pinctrl_sec {
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";

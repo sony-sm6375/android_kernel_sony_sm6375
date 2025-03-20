@@ -28,7 +28,7 @@
 		};
 	};
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	pmx_sde_en: pmx_sde_en {
 		vci_en_active: vci_en_active {
 			mux {
@@ -90,7 +90,7 @@
 	/delete-property/ lab-supply;
 
 	pinctrl-0 = <&sde_te_active &disp_pins_reset>;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	pinctrl-1 = <&sde_te_suspend>;
 	qcom,dsi-default-panel = <&dsi_samsung_amoled_cmd>;
 #else
@@ -167,7 +167,7 @@
 	qcom,platform-reset-gpio = <&pmr735a_gpios 2 0>;
 };
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 &dsi_samsung_amoled_cmd {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_avdd>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
