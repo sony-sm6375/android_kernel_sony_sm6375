@@ -149,7 +149,9 @@ enum msm_camera_power_seq_type {
 	SENSOR_WL2868C_VIO,
 	SENSOR_WL2868C_VAF,
 	#endif
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 	SENSOR_OIS,
+#endif
 	SENSOR_SEQ_TYPE_MAX,
 };
 

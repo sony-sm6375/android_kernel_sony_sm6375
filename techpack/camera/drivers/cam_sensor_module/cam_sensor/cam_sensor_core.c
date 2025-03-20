@@ -22,6 +22,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 /* For SM5038 Flash LED */
 enum sm5038_fled_mode {
 	SM5038_FLED_MODE_OFF = 1,
@@ -34,7 +35,6 @@ enum sm5038_fled_mode {
 
 extern int32_t sm5038_fled_mode_ctrl(int state, uint32_t brightness);
 
-#if defined(CONFIG_ARCH_SONY_MURRAY)
 static void cam_sensor_write_hwinfo(uint32_t cell_index)
 {
 	switch(cell_index){
