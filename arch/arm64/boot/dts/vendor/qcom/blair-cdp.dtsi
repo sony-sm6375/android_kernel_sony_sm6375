@@ -114,7 +114,7 @@
 		status = "ok";
 };
 
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI)
 &qupv3_se0_i2c {
 	status = "ok";
 	#address-cells = <1>;

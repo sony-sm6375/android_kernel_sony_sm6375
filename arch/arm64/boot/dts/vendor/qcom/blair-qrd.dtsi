@@ -52,7 +52,7 @@
 
 
 &sdhc_1 {
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	status = "disabled";
 #else
 	status = "ok";
@@ -123,7 +123,7 @@
 	status = "ok";
 };
 
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
 &qupv3_se0_i2c {
 	status = "ok";
 	#address-cells = <1>;
@@ -174,7 +174,9 @@
 	qcom,model = "holi-qrdsku1-snd-card";
 	qcom,sku-model = "holi-qrdsku1-snd-card";
 	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	qcom,sec-mi2s-gpios =<&cdc_sec_mi2s_gpios>;
+#endif
 	qcom,wcn-btfm = <1>;
 	qcom,audio-routing =
 		"AMIC1", "Analog Mic1",
@@ -183,30 +185,30 @@
 		"Analog Mic2", "MIC BIAS2",
 		"AMIC3", "Analog Mic3",
 		"Analog Mic3", "MIC BIAS3",
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
 		"AMIC4", "Analog Mic4",
 		"Analog Mic4", "MIC BIAS3",
 #endif
 		"TX DMIC0", "Digital Mic0",
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 		"TX DMIC0", "MIC BIAS3",
 #else
 		"TX DMIC0", "MIC BIAS1",
 #endif
 		"TX DMIC1", "Digital Mic1",
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 		"TX DMIC1", "MIC BIAS3",
 #else
 		"TX DMIC1", "MIC BIAS1",
 #endif
 		"TX DMIC2", "Digital Mic2",
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 		"TX DMIC2", "MIC BIAS1",
 #else
 		"TX DMIC2", "MIC BIAS3",
 #endif
 		"TX DMIC3", "Digital Mic3",
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 		"TX DMIC3", "MIC BIAS1",
 #else
 		"TX DMIC3", "MIC BIAS3",
@@ -218,7 +220,7 @@
 		"RX_TX DEC1_INP", "TX DEC1 MUX",
 		"RX_TX DEC2_INP", "TX DEC2 MUX",
 		"RX_TX DEC3_INP", "TX DEC3 MUX",
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
 		"SpkrMono WSA_IN", "AUX",
 #endif
 		"TX SWR_INPUT", "WCD_TX_OUTPUT",
@@ -280,7 +282,7 @@
 		};
 	};
 
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 	sony_ext_uim_ctrl {
 		compatible = "sony,ext-uim-ctrl";
 		uim2_detect_en_gpio = <&tlmm 85 GPIO_ACTIVE_HIGH>;
@@ -301,7 +303,7 @@
 };
 
 &thermal_zones {
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
 	quiet-therm-step {
 		polling-delay-passive = <2000>;
 		polling-delay = <0>;
@@ -651,7 +653,7 @@
 		awinic,red {
 			awinic,name = "red";
 			awinic,id = <0>;
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 			awinic,imax = <0>;
 			awinic,led-current = <12>;
 #else
@@ -668,7 +670,7 @@
 		awinic,green {
 			awinic,name = "green";
 			awinic,id = <1>;
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 			awinic,imax = <0>;
 			awinic,led-current = <12>;
 #else
@@ -685,7 +687,7 @@
 		awinic,blue {
 			awinic,name = "blue";
 			awinic,id = <2>;
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 			awinic,imax = <0>;
 			awinic,led-current = <12>;
 #else

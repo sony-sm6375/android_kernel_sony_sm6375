@@ -329,7 +329,9 @@
 		actuator-src = <&actuator_rear>;
 		eeprom-src = <&eeprom_rear>;
 		led-flash-src = <&led_flash_rear>;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 		ois-src = <&ois_rear>;
+#endif
 #if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
 		cam_vio-supply = <&L6P>;
 		cam_vana-supply = <&L4P>;
@@ -361,20 +363,20 @@
 		gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk0_active
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 					&cam_sensor_rear0_reset_active
 					&cam_ois_vdd_active>;
 #else
 					&cam_sensor_rear0_reset_active>;
 #endif
 		pinctrl-1 = <&cam_sensor_mclk0_suspend
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 					&cam_sensor_rear0_reset_suspend
 					&cam_ois_vdd_suspend>;
 #else
 					&cam_sensor_rear0_reset_suspend>;
 #endif
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 		gpios = <&tlmm 29 0>,
 			<&tlmm 34 0>;
 #else
@@ -383,7 +385,7 @@
 				<&tlmm 33 0>;
 #endif
 		gpio-reset = <1>;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 		gpio-standby = <2>;
 		gpio-req-tbl-num = <0 1 2>;
 		gpio-req-tbl-flags = <1 0 0>;

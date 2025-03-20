@@ -79,7 +79,7 @@
 };
 
 &dsi_r66451_amoled_video {
-#ifndef CONFIG_ARCH_SONY_MURRAY
+#if !defined (CONFIG_ARCH_SONY_MURRAY)
 	qcom,esd-check-enabled;
 #endif
 	qcom,mdss-dsi-panel-status-check-mode = "reg_read";

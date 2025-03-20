@@ -32,7 +32,7 @@
 				3500000 3000000 2500000 2000000 1500000
 				1000000 500000>;
 			qcom,hvdcp2-max-icl-ua = <2000000>;
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 			qcom,fcc-max-ua = <3300000>;
 			qcom,otg-cl-ua = <1500000>;
 #endif
@@ -190,7 +190,7 @@
 			depends-on-supply = <&pm7250b_vadc>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 			//cutoff voltage change to 3.4V from 3.2V
 			qcom,vbatt-cutoff-mv = <3400>;
 #else
@@ -414,7 +414,7 @@
 					  "fr-swap";
 
 			qcom,default-sink-caps = <5000 3000>, /* 5V @ 3A */
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 						 <9000 3000>; /* 9V @ 3A */
 #else
 						 <9000 3000>, /* 9V @ 3A */

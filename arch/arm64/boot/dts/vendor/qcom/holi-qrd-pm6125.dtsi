@@ -265,7 +265,7 @@
 };
 
 &thermal_zones {
-#ifndef CONFIG_ARCH_SONY_MURRAY
+#if !defined (CONFIG_ARCH_SONY_MURRAY)
 	quiet-therm-step {
 		polling-delay-passive = <2000>;
 		polling-delay = <0>;

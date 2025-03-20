@@ -2905,7 +2905,7 @@
 		iommus = <&apps_smmu 0x40 0x0>;
 		qcom,iommu-dma = "bypass";
 
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
 		no-mmc;
 		no-sdio;
 #endif
@@ -4006,9 +4006,9 @@
 };
 
 #include "msm-rdbg.dtsi"
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 #include "somc-zambezi-nfc.dtsi"
 #endif
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 #include "somc-murray-nfc.dtsi"
 #endif

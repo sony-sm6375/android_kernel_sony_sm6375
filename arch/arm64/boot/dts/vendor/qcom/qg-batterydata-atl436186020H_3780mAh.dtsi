@@ -1,7 +1,7 @@
 #include <generated/autoconf.h>
 qcom,ATL436186_020H_3780mAh {
 	/* ATL436186_020H_3780mAh_Averaged_MasterSlave_Feb25th2020 */
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	qcom,max-voltage-uv = <4480000>;
 	qcom,fg-cc-cv-threshold-uv = <4480000>;
 	qcom,fastchg-current-ma = <4000>;
@@ -17,7 +17,7 @@ qcom,ATL436186_020H_3780mAh {
 			"ATL436186_020H_3780mAh_Averaged_MasterSlave_Feb25th2020";
 	qcom,qg-batt-profile-ver = <100>;
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	qcom,jeita-fcc-ranges = <50  120  950000
 				121 150  2450000
 				151 200  2950000
@@ -59,7 +59,7 @@ qcom,ATL436186_020H_3780mAh {
 
 	/* Rise-Hys = 1 DeciDegC, Fall-Hys=10 deciDegC */
 	qcom,qcom,step-jeita-hysteresis = <1 10>;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	/* COOL = 12 degc, WARM = 45 degC */
 	qcom,jeita-soft-thresholds = <0x4A2A 0x20b8>;
 	/* COLD = 5 degC, HOT = 55 degC*/

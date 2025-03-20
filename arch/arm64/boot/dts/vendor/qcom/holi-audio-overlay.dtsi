@@ -225,7 +225,7 @@
 		qcom,cdc-vdd-mic-bias-voltage = <3296000 3296000>;
 		qcom,cdc-vdd-mic-bias-current = <45000>;
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 		qcom,cdc-micbias1-mv = <2700>;
 		qcom,cdc-micbias2-mv = <2700>;
 		qcom,cdc-micbias3-mv = <2700>;
@@ -255,7 +255,7 @@
 		"Analog Mic2", "MIC BIAS2",
 		"AMIC3", "Analog Mic3",
 		"Analog Mic3", "MIC BIAS3",
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined (CONFIG_ARCH_SONY_ZAMBEZI)
 		"AMIC4", "Analog Mic4",
 		"Analog Mic4", "MIC BIAS3",
 #endif
@@ -274,7 +274,7 @@
 		"RX_TX DEC1_INP", "TX DEC1 MUX",
 		"RX_TX DEC2_INP", "TX DEC2 MUX",
 		"RX_TX DEC3_INP", "TX DEC3 MUX",
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined (CONFIG_ARCH_SONY_ZAMBEZI)
 		"SpkrMono WSA_IN", "AUX",
 #endif
 		"TX SWR_INPUT", "WCD_TX_OUTPUT",
@@ -302,14 +302,14 @@
 	nvmem-cell-names = "adsp_variant";
 
 	asoc-codec  = <&stub_codec>, <&bolero>,
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 		      <&wcd937x_codec>;
 #else
 		      <&wcd937x_codec>, <&wsa881x_i2c_e>,
 		      <&wsa881x_i2c_f>;
 #endif
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 			   "wcd937x_codec";
 #else
 			   "wcd937x_codec", "wsa-codec0",
@@ -319,7 +319,7 @@
 				  <&bolero>;
 };
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 &qupv3_se7_i2c {
 	aw882xx_smartpa@34 {
 		compatible = "awinic,aw882xx_smartpa";
@@ -346,7 +346,7 @@
 		reg = <0x34>;
 		irq-gpio = <&tlmm 60 0>;
 		dc-flag = <0>;
-#ifdef CONFIG_ARCH_SONY_MURRAY
+#if defined(CONFIG_ARCH_SONY_MURRAY)
 		sound-channel = <0>;
 #else
 		sound-channel = <1>;
