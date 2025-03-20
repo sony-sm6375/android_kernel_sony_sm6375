@@ -1,0 +1,35 @@
+#
+# secure element driver configuration
+#
+
+config NXP_P73_DEVICES
+        tristate "Nxp P73 secure element protocol driver (SPI) devices"
+        depends on SPI && NFC_SNX0_DEVICES
+	---help---
+	  You'll have to say Y if your computer contains an SPI device that
+	  you want to use under Linux.
+
+	  You can say N here if you don't have any SPI connected to your computer.
+
+config NXP_P73v1_DEVICES
+        bool "Nxp P73 secure element protocol driver (SPI) devices"
+        depends on NXP_P73_DEVICES && NFC_SN1X0_DEVICES
+	---help---
+	  You'll have to say Y if your computer contains an SPI device that
+	  you want to use under Linux.
+
+	  You can say N here if you don't have any SPI connected to your computer.
+
+config NXP_P73v2_DEVICES
+	bool "Nxp P73 secure element protocol driver (SPI) devices"
+	depends on NXP_P73_DEVICES && NFC_SN2X0_DEVICES
+	help
+	  This enables the Secure Element driver for SNxxx based devices.
+
+	  If unsure, say N.
+
+	  This selects Secure Element support.
+
+	  If you want NFC support, you should say Y here and
+	  also to your specific host controller driver.
+

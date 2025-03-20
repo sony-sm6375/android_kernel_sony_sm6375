@@ -1,6 +1,0 @@
-obj-$(CONFIG_NFC_SN2X0_DEVICES) += sn2x0.o
-
-sn2x0-objs := common.o common_ese.o i2c_drv.o
-
-#ccflags-y += -DDYNAMIC_DEBUG_MODULE
-

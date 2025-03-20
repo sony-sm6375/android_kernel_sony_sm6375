@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- *  Copyright 2012-2021 NXP
- *  Copyright 2021 Sony Corporation
+ *  Copyright 2012-2022 NXP
+ *  Copyright 2022 Sony Corporation
  *   *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@
 #include <linux/ktime.h>
 #include <linux/regulator/consumer.h>
 #include "p73.h"
-#include "../sn1x0_i2c/common_ese.h"
+#include "../snx0_i2c/common_ese.h"
 
 #define DRAGON_P61 1
 
@@ -279,10 +279,10 @@ static void set_cs_gpio(struct p61_dev *p61_dev, int value) {
 static int ese_dev_release(struct inode *inode, struct file *filp)
 {
 	struct p61_dev *p61_dev = NULL;
-	printk(KERN_ALERT "Enter %s: ESE driver release \n", __func__);
+	P61_DBG_MSG("Enter %s: ESE driver release \n", __func__);
 	p61_dev = filp->private_data;
 	nfc_ese_pwr(p61_dev->nfcc_data, ESE_RST_PROT_DIS);
-	printk(KERN_ALERT "Exit %s: ESE driver release \n", __func__);
+	P61_DBG_MSG("Exit %s: ESE driver release \n", __func__);
 	return 0;
 }
 
@@ -457,12 +457,14 @@ static long p61_dev_ioctl(struct file *filp, unsigned int cmd,
 				  (arg == 1 ? ESE_RST_PROT_EN : ESE_RST_PROT_DIS));
 		P61_DBG_MSG(KERN_ALERT " PERFORM_RESET_PROTECTION ret: %d exit", ret);
 		break;
+#if defined(CONFIG_NXP_P73v1_DEVICES)
 	// Notice: this IOCTL is just for ETS only, any HAL MUST NOT call it anyway.
 	case ESE_PERFORM_HW_COLD_RESET:
 		P61_DBG_MSG(KERN_ALERT " ESE_PERFORM_HW_COLD_RESET: enter");
 		ret = nfc_ese_pwr(p61_dev->nfcc_data, ESE_HW_CLD_RST);
 		P61_DBG_MSG(KERN_ALERT " ESE_PERFORM_HW_COLD_RESET ret: %d exit", ret);
 		break;
+#endif
 	default:
 		P61_DBG_MSG(KERN_ALERT " Error case");
 		ret = -EINVAL;
@@ -471,6 +473,35 @@ static long p61_dev_ioctl(struct file *filp, unsigned int cmd,
 	P61_DBG_MSG(KERN_ALERT "p61_dev_ioctl-exit %u arg = %lu\n", cmd, arg);
 	return ret;
 }
+
+#if defined(CONFIG_NXP_P73v2_DEVICES)
+#ifdef CONFIG_COMPAT
+/**
+ * \ingroup spi_driver
+ * \brief To configure the P61_SET_PWR/P61_SET_DBG/P61_SET_POLL
+ * \n         P61_SET_PWR - hard reset (arg=2), soft reset (arg=1)
+ * \n         P61_SET_DBG - Enable/Disable (based on arg value) the driver logs
+ * \n         P61_SET_POLL - Configure the driver in poll (arg = 1), interrupt (arg = 0) based read operation
+ * \param[in]       struct file *
+ * \param[in]       unsigned int
+ * \param[in]       unsigned long
+ *
+ * \retval 0 if ok.
+ *
+*/
+
+static long p61_dev_compat_ioctl(struct file *filp, unsigned int cmd,
+			  unsigned long arg)
+{
+	int ret = 0;
+	arg = (compat_u64)arg;
+	P61_DBG_MSG(KERN_ALERT "p61_dev_compat_ioctl-Enter %u arg = %ld\n", cmd, arg);
+	pr_debug("%s: cmd = %x arg = %zx\n", __func__, cmd, arg);
+	ret = p61_dev_ioctl(filp, cmd, arg);
+	return ret;
+}
+#endif
+#endif
 
 /**
  * \ingroup spi_driver
@@ -832,6 +863,11 @@ static const struct file_operations p61_dev_fops = {
 	.open = p61_dev_open,
 	.release = ese_dev_release,
 	.unlocked_ioctl = p61_dev_ioctl,
+#if defined(CONFIG_NXP_P73v2_DEVICES)
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = p61_dev_compat_ioctl,
+#endif
+#endif
 };
 
 #if DRAGON_P61
@@ -890,6 +926,9 @@ static int p61_probe(struct spi_device *spi)
 
 	P61_DBG_MSG("%s chip select : %d , bus number = %d \n", __func__,
 		    spi->chip_select, spi->master->bus_num);
+#if defined(CONFIG_NXP_P73v2_DEVICES)
+	memset(&platform_data1, 0x00, sizeof(struct p61_spi_platform_data));
+#endif
 #if !DRAGON_P61
 	platform_data = spi->dev.platform_data;
 	if (platform_data == NULL) {
@@ -1084,7 +1123,11 @@ static int p61_remove(struct spi_device *spi)
 #if DRAGON_P61
 static struct of_device_id p61_dt_match[] = {
 	{
+#if defined(CONFIG_NXP_P73v2_DEVICES)
+		.compatible = "nxp,sn2x0-spi",
+#else
 		.compatible = "nxp,sn1x0-spi",
+#endif
 	},
 	{}
 };
