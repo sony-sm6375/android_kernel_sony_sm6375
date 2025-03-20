@@ -123,7 +123,7 @@
 	status = "ok";
 };
 
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 &qupv3_se0_i2c {
 	status = "ok";
 	#address-cells = <1>;
@@ -185,7 +185,7 @@
 		"Analog Mic2", "MIC BIAS2",
 		"AMIC3", "Analog Mic3",
 		"Analog Mic3", "MIC BIAS3",
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		"AMIC4", "Analog Mic4",
 		"Analog Mic4", "MIC BIAS3",
 #endif
@@ -220,7 +220,7 @@
 		"RX_TX DEC1_INP", "TX DEC1 MUX",
 		"RX_TX DEC2_INP", "TX DEC2 MUX",
 		"RX_TX DEC3_INP", "TX DEC3 MUX",
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		"SpkrMono WSA_IN", "AUX",
 #endif
 		"TX SWR_INPUT", "WCD_TX_OUTPUT",
@@ -303,7 +303,7 @@
 };
 
 &thermal_zones {
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 	quiet-therm-step {
 		polling-delay-passive = <2000>;
 		polling-delay = <0>;

@@ -48,7 +48,7 @@
 	eeprom_rear: qcom,eeprom0 {
 		cell-index = <0>;
 		compatible = "qcom,eeprom";
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		cam_vio-supply = <&L6P>;
 		cam_vana-supply = <&L4P>;
 		cam_vdig-supply = <&L2P>;
@@ -332,7 +332,7 @@
 #if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 		ois-src = <&ois_rear>;
 #endif
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		cam_vio-supply = <&L6P>;
 		cam_vana-supply = <&L4P>;
 		cam_vaf-supply = <&L5P>;

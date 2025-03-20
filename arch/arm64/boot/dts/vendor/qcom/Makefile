@@ -93,7 +93,7 @@ dtb-$(CONFIG_ARCH_LAHAINA) += lahaina-rumi.dtb \
 	lahaina-v2.1-qrd-hsp-pro.dts
 endif
 
-ifneq ($(CONFIG_ARCH_SONY_ZAMBEZI),y)
+ifeq ($(filter y,$(CONFIG_ARCH_SONY_ZAMBEZI) $(CONFIG_ARCH_SONY_MURRAY)),)
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 dtbo-$(CONFIG_ARCH_HOLI) += holi-rumi-overlay.dtbo \
 	holi-mtp-overlay.dtbo \
