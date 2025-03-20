@@ -1024,7 +1024,11 @@
 		reg-names = "wdt-base";
 		interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>,
 					<0 1 IRQ_TYPE_LEVEL_HIGH>;
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		qcom,bark-time = <15000>;
+#else
 		qcom,bark-time = <11000>;
+#endif
 		qcom,pet-time = <9360>;
 		qcom,ipi-ping;
 		qcom,wakeup-enable;
