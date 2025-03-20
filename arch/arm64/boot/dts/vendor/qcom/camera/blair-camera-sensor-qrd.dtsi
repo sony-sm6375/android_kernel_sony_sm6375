@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include <dt-bindings/clock/qcom,gcc-blair.h>
 #include <dt-bindings/msm/msm-camera.h>
 #if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
@@ -202,7 +203,7 @@
 	led_flash_rear: qcom,camera-flash@0 {
 		cell-index = <0>;
 		compatible = "qcom,camera-flash";
-		flash-type = <CAM_FLASH_TYPE_GPIO>;
+		flash-type = <CAM_FLASH_TYPE_PMIC>;
 		gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&flash_active>;
@@ -218,7 +219,7 @@
 	led_flash_rear_aux2: qcom,camera-flash@2 {
 		cell-index = <2>;
 		compatible = "qcom,camera-flash";
-		flash-type = <CAM_FLASH_TYPE_GPIO>;
+		flash-type = <CAM_FLASH_TYPE_PMIC>;
 		gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&flash_active>;
@@ -402,7 +403,7 @@
 		clock-rates = <19200000>;
 	};
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	eeprom_rear_aux2: qcom,eeprom2 {
 		cell-index = <2>;
 		compatible = "qcom,eeprom";
@@ -435,7 +436,7 @@
 		clock-cntl-level = "turbo";
 		clock-rates = <19200000>;
 	};
-#else
+#elif !defined(CONFIG_ARCH_SONY_MURRAY)
 	/*Rear Aux2*/
 	qcom,cam-sensor3 {
 		cell-index = <3>;
@@ -851,7 +852,7 @@
 	led_flash_rear_aux: qcom,camera-flash@3 {
 		cell-index = <3>;
 		compatible = "qcom,camera-flash";
-		flash-type = <CAM_FLASH_TYPE_GPIO>;
+		flash-type = <CAM_FLASH_TYPE_PMIC>;
 		gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&flash_active>;

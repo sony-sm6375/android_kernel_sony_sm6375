@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include "dsi-panel-sim-video.dtsi"
 #include "dsi-panel-rm69299-visionox-fhd-plus-video.dtsi"
 #include "dsi-panel-rm69299-visionox-fhd-plus-cmd.dtsi"

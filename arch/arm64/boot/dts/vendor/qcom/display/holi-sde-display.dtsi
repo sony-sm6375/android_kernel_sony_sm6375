@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include "holi-sde-display-common.dtsi"
 #include <dt-bindings/clock/qcom,dispcc-holi.h>
 

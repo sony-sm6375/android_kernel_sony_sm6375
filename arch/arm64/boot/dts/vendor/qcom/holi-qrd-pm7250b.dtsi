@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/iio/qti_power_supply_iio.h>
 #include "holi-pm7250b.dtsi"
@@ -352,5 +353,5 @@
 #endif
 		};
 	};
-#endif
 };
+#endif

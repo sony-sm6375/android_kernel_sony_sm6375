@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 /dts-v1/;
 /plugin/;
 
@@ -6,11 +7,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. Blairp ATP";
 	compatible = "qcom,blairp-atp", "qcom,blairp", "qcom,atp";
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
 	qcom,msm-id = <565 0x10000>, <628 0x10000>, <647 0x10000>;
-#else
-	qcom,msm-id = <565 0x10000>, <628 0x10000>;
-#endif
 	qcom,board-id = <33 0>;
 };
 

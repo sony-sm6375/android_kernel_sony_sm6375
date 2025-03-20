@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include <dt-bindings/clock/qcom,dispcc-blair.h>
 #include <dt-bindings/clock/qcom,gcc-blair.h>
 #include <dt-bindings/clock/qcom,gpucc-blair.h>
@@ -17,11 +18,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. Blair ";
 	compatible = "qcom,blair";
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
 	qcom,msm-id = <507 0x10000>, <578 0x10000>, <647 0x10000>;
-#else
-	qcom,msm-id = <507 0x10000>, <578 0x10000>;
-#endif
 	interrupt-parent = <&intc>;
 
 	#address-cells = <2>;
@@ -55,11 +52,17 @@
 		hsuart0 = &qupv3_se1_4uart;
 		swr0 = &swr0;
 		swr1 = &swr1;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 		i2c0 = &qupv3_se0_i2c;
 		i2c1 = &qupv3_se7_i2c;
 		i2c2 = &qupv3_se10_i2c;
 		i2c3 = &qupv3_se8_i2c;
+#endif
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		i2c0 = &qupv3_se7_i2c;
+		i2c1 = &qupv3_se8_i2c;
+		i2c2 = &qupv3_se10_i2c;
+		i2c3 = &qupv3_se0_i2c;
 #endif
 	};
 
@@ -261,7 +264,7 @@
 	};
 
 	soc: soc { };
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 	hwinfo:HardwareInfo {
 		compatible = "huaqin,HardwareInfo";
 		pcb_type_gpios0 = <&tlmm 47 0 >;
@@ -463,7 +466,7 @@
 		size = <0x0 0x800000>;
 	};
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
     debug_region: debug_region@ffb00000 {
 		compatible = "removed-dma-pool", "qcom,debug_memory";
 		no-map;
@@ -2343,7 +2346,7 @@
 				qcom,intents = <0x800  5
 						0x2000 3
 						0x4400 2>;
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 				qcom,non-wake-svc = <0x51
 						0x190>;
 #endif
@@ -2833,8 +2836,10 @@
 		non-removable;
 		supports-cqe;
 
+#if !defined(CONFIG_ARCH_SONY_MURRAY)
 		no-sd;
 		no-sdio;
+#endif
 
 		qcom,devfreq,freq-table = <50000000 200000000>;
 		qcom,scaling-lower-bus-speed-mode = "DDR52";
@@ -2900,7 +2905,7 @@
 		iommus = <&apps_smmu 0x40 0x0>;
 		qcom,iommu-dma = "bypass";
 
-#ifndef CONFIG_ARCH_SONY_ZAMBEZI
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		no-mmc;
 		no-sdio;
 #endif
@@ -3321,7 +3326,7 @@
 		};
 	};
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
     restart-reason {
 		compatible = "qcom,restart-reason";
 		unknown {
@@ -3441,7 +3446,7 @@
 #include "blair-usb.dtsi"
 #include "ipcc-test-holi.dtsi"
 
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 &tlmm {
 	pcb_type_pins: pcb_type_pins {
 		pcb_type_default: pcb_type_default {
@@ -4003,4 +4008,7 @@
 #include "msm-rdbg.dtsi"
 #ifdef CONFIG_ARCH_SONY_ZAMBEZI
 #include "somc-zambezi-nfc.dtsi"
+#endif
+#ifdef CONFIG_ARCH_SONY_MURRAY
+#include "somc-murray-nfc.dtsi"
 #endif

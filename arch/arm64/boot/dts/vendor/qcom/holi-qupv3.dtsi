@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include <dt-bindings/interconnect/qcom,holi.h>
 
 &soc {

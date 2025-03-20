@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 &mdss_mdp {
 	dsi_samsung_amoled_cmd: qcom,mdss_dsi_samsung_fhd_amoled_cmd {
 		qcom,mdss-dsi-panel-name =
