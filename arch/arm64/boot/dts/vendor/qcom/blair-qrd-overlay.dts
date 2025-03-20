@@ -4,6 +4,9 @@
 
 #include "blair-qrd.dtsi"
 #include "holi-qrd-pm7250b.dtsi"
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+#include "blair-murray-common.dtsi"
+#endif
 
 / {
 	model = "Qualcomm Technologies, Inc. Blair QRD";
