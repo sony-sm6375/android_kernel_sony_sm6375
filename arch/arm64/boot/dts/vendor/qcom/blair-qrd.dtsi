@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include "holi-audio-overlay.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
@@ -5,8 +6,13 @@
 #include "display/holi-sde-display-qrd-pm6125.dtsi"
 #include "display/blair-sde-display-qrd.dtsi"
 #include "holi-thermal-overlay-pm6125.dtsi"
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
 #include "blair-fingerprint.dtsi"
+#endif
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+#include "sm5038.dtsi"
+#include "haptic_nv.dtsi"
+#include "haptic_ti.dtsi"
 #endif
 
 &wcd938x_codec {

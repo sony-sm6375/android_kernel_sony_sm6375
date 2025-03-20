@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 /dts-v1/;
 /plugin/;
 
@@ -6,11 +7,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. Blair MTP NOPMI";
 	compatible = "qcom,blair-mtp", "qcom,blair", "qcom,mtp";
-#ifdef CONFIG_ARCH_SONY_ZAMBEZI
 	qcom,msm-id = <507 0x10000>, <578 0x10000>, <647 0x10000>;
-#else
-	qcom,msm-id = <507 0x10000>, <578 0x10000>;
-#endif
 	qcom,board-id = <8 0>;
 	qcom,pmic-id-size = <4>;
 	qcom,pmic-id = <0x2D 0x0 0x0 0x0>;

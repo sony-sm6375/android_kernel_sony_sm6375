@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 
 &cam_cci0 {
 

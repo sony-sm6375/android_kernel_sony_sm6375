@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 qcom,ATL436186_020H_3780mAh {
 	/* ATL436186_020H_3780mAh_Averaged_MasterSlave_Feb25th2020 */
 #ifdef CONFIG_ARCH_SONY_ZAMBEZI

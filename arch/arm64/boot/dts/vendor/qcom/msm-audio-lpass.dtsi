@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 &soc {
 	pcm0: qcom,msm-pcm {
 		compatible = "qcom,msm-pcm-dsp";
