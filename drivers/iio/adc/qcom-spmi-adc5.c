@@ -971,6 +971,16 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_BATT_THERM_400K)
 	[ADC5_BAT_ID_100K_PU]	= ADC5_CHAN_TEMP("bat_id", 0,
 					SCALE_HW_CALIB_DEFAULT)
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP_QN6832A)/*pa_therm0*/
+	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP_QN6832A)/*quiet_therm*/
+	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_AMUX_THM4_100K_PU] = ADC5_CHAN_VOLT("amux_thm4_100k_pu", 0,
+					SCALE_HW_CALIB_DEFAULT)
+#else
 	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 0,
@@ -979,18 +989,33 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM4_100K_PU] = ADC5_CHAN_TEMP("amux_thm4_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+#endif
 	[ADC5_AMUX_THM2]	= ADC5_CHAN_TEMP("amux_thm2", 0,
 					SCALE_HW_CALIB_PM5_SMB_TEMP)
 	[ADC5_PARALLEL_ISENSE]	= ADC5_CHAN_VOLT("parallel_isense", 0,
 					SCALE_HW_CALIB_PM5_CUR)
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	[ADC5_GPIO1_100K_PU]	= ADC5_CHAN_TEMP("gpio1_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP_QN6832A)/*msm_therm*/
+#else
 	[ADC5_GPIO1_100K_PU]	= ADC5_CHAN_TEMP("gpio1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+#endif
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	[ADC5_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_GPIO3_100K_PU]	= ADC5_CHAN_TEMP("gpio3_100k_pu", 0,
-					SCALE_HW_CALIB_THERM_100K_PULLUP)
+					SCALE_HW_CALIB_THERM_100K_PULLUP_QN6832A)/*flash_camera_therm*/
+	[ADC5_GPIO4_100K_PU]	= ADC5_CHAN_TEMP("gpio4_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP_QN6832A)/*pa_therm1*/
+#else
+	[ADC5_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_100k_pu", 0,
+					SCALE_HW_CALIB_BATT_THERM_100K_QN5965)/*batt_therm*/
+	[ADC5_GPIO3_100K_PU]	= ADC5_CHAN_VOLT("gpio3_100k_pu", 0,
+					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GPIO4_100K_PU]	= ADC5_CHAN_TEMP("gpio4_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+#endif
 };
 
 static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {
@@ -1020,12 +1045,22 @@ static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_PMIC_THERM_PM7)
 	[ADC7_AMUX_THM1_100K_PU]	= ADC5_CHAN_TEMP("amux_thm1_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	[ADC7_AMUX_THM2_100K_PU]	= ADC5_CHAN_TEMP("amux_thm2_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+#else
+	[ADC7_AMUX_THM2_100K_PU]	= ADC5_CHAN_VOLT("amux_thm2_pu2", 0,
+					SCALE_HW_CALIB_DEFAULT)		/*batt_id*/
+#endif
 	[ADC7_AMUX_THM3_100K_PU]	= ADC5_CHAN_TEMP("amux_thm3_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	[ADC7_AMUX_THM4_100K_PU]	= ADC5_CHAN_TEMP("amux_thm4_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+#else
+	[ADC7_AMUX_THM4_100K_PU]	= ADC5_CHAN_TEMP("amux_thm4_pu2", 0,
+					SCALE_HW_CALIB_THERM_100K_QN5965)/*usb_conn_therm*/
+#endif
 	[ADC7_AMUX_THM5_100K_PU]	= ADC5_CHAN_TEMP("amux_thm5_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC7_AMUX_THM6_100K_PU]	= ADC5_CHAN_TEMP("amux_thm6_pu2", 0,
@@ -1034,12 +1069,19 @@ static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC7_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	[ADC7_GPIO3_100K_PU]	= ADC5_CHAN_TEMP("gpio3_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+#else
+	[ADC7_GPIO3_100K_PU]	= ADC5_CHAN_TEMP("gpio3_pu2", 0,
+					SCALE_HW_CALIB_THERM_100K_QN5965)/*pmr735a_charger_skin_therm*/
+#endif
 	[ADC7_GPIO4_100K_PU]	= ADC5_CHAN_TEMP("gpio4_pu2", 0,
 					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	[ADC7_V_I_BAT_THERM]	= ADC5_CHAN_TEMP("bat_therm_calib_100k_pu",
 					0, SCALE_HW_CALIB_PM5_GEN3_BATT_THERM_100K)
+#endif
 };
 
 static const struct adc5_channels adc5_chans_rev2[ADC5_MAX_CHANNEL] = {
@@ -1097,7 +1139,11 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		chan = (chan & ADC_CHANNEL_MASK);
 	}
 
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
 	if (chan > ADC5_MAX_CHANNEL ||
+#else
+	if (chan > ADC5_PARALLEL_ISENSE_VBAT_IDATA ||
+#endif
 	    !data->adc_chans[chan].datasheet_name) {
 		dev_err(dev, "%s invalid channel number %d\n", name, chan);
 		return -EINVAL;
@@ -1455,12 +1501,25 @@ static int adc5_probe(struct platform_device *pdev)
 	return devm_iio_device_register(dev, indio_dev);
 }
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+static int adc5_exit(struct platform_device *pdev)
+{
+	struct adc5_chip *adc = platform_get_drvdata(pdev);
+
+	mutex_destroy(&adc->lock);
+	return 0;
+}
+#endif
+
 static struct platform_driver adc5_driver = {
 	.driver = {
 		.name = "qcom-spmi-adc5",
 		.of_match_table = adc5_match_table,
 	},
 	.probe = adc5_probe,
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	.remove = adc5_exit,
+#endif
 };
 module_platform_driver(adc5_driver);
 
