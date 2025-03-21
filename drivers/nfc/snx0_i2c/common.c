@@ -315,7 +315,7 @@ static int nfc_ioctl_power_states(struct nfc_dev *nfc_dev, unsigned long arg)
 	return ret;
 }
 
-#if defined(NFC_SN2X0_DEVICES)
+#if defined(CONFIG_NFC_SN2X0_DEVICES)
 #ifdef CONFIG_COMPAT
 /**
  * nfc_dev_compat_ioctl - used to set or get data from upper layer.
