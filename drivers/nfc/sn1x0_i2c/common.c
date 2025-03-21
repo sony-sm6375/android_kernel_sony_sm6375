@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright (C) 2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2022 NXP
+ * Copyright (C) 2019-2021 NXP
  * Copyright 2021 Sony Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -50,22 +50,14 @@ int nfc_parse_dt(struct device *dev, struct platform_configs *nfc_configs,
 		if ((!gpio_is_valid(nfc_gpio->irq))) {
 			pr_err("%s: irq gpio invalid %d\n", __func__,
 			       nfc_gpio->irq);
-#if defined(CONFIG_NFC_SN2X0_DEVICES)
-			return nfc_gpio->irq;
-#else
 			return -EINVAL;
-#endif
 		}
 		pr_info("%s: irq %d\n", __func__, nfc_gpio->irq);
 	}
 	nfc_gpio->ven = of_get_named_gpio(np, DTS_VEN_GPIO_STR, 0);
 	if ((!gpio_is_valid(nfc_gpio->ven))) {
 		pr_err("%s: ven gpio invalid %d\n", __func__, nfc_gpio->ven);
-#if defined(CONFIG_NFC_SN2X0_DEVICES)
-		return nfc_gpio->ven;
-#else
 		return -EINVAL;
-#endif
 	}
 	/* some products like sn220 does not required fw dwl pin */
 	nfc_gpio->dwl_req = of_get_named_gpio(np, DTS_FWDN_GPIO_STR, 0);
@@ -315,33 +307,6 @@ static int nfc_ioctl_power_states(struct nfc_dev *nfc_dev, unsigned long arg)
 	return ret;
 }
 
-#if defined(NFC_SN2X0_DEVICES)
-#ifdef CONFIG_COMPAT
-/**
- * nfc_dev_compat_ioctl - used to set or get data from upper layer.
- * @pfile   file node for opened device.
- * @cmd     ioctl type from upper layer.
- * @arg     ioctl arg from upper layer.
- *
- * NFC and ESE Device power control, based on the argument value
- *
- * Return: -ENOIOCTLCMD if arg is not supported
- * 0 if Success(or no issue)
- * 0 or 1 in case of arg is ESE_GET_PWR/ESE_POWER_STATE
- * and error ret code otherwise
- */
-long nfc_dev_compat_ioctl(struct file *pfile, unsigned int cmd,
-		      unsigned long arg)
-{
-	int ret = 0;
-	arg = (compat_u64)arg;
-	pr_debug("%s: cmd = %x arg = %zx\n", __func__, cmd, arg);
-	ret = nfc_dev_ioctl(pfile, cmd, arg);
-	return ret;
-}
-#endif
-#endif
-
 /**
  * nfc_dev_ioctl - used to set or get data from upper layer.
  * @pfile   file node for opened device.
@@ -441,12 +406,10 @@ int nfc_dev_close(struct inode *inode, struct file *filp)
 	if (nfc_dev->dev_ref_count == 1) {
 		nfc_dev->nfc_disable_intr(nfc_dev);
 		set_valid_gpio(nfc_dev->configs.gpio.dwl_req, 0);
-#if defined(CONFIG_NFC_SN1X0_DEVICES)
 	}
 	if (nfc_dev->dev_ref_count > 0)
 		nfc_dev->dev_ref_count = nfc_dev->dev_ref_count - 1;
 	else {
-#endif
 		/*
 		 * Use "ESE_RST_PROT_DIS" as argument
 		 * if eSE calls flow is via NFC driver
@@ -454,11 +417,6 @@ int nfc_dev_close(struct inode *inode, struct file *filp)
 		 */
 		nfc_ese_pwr(nfc_dev, ESE_RST_PROT_DIS_NFC);
 	}
-#if defined(CONFIG_NFC_SN2X0_DEVICES)
-	if (nfc_dev->dev_ref_count > 0)
-		nfc_dev->dev_ref_count = nfc_dev->dev_ref_count - 1;
-#endif
-
 	filp->private_data = NULL;
 
 	mutex_unlock(&nfc_dev->dev_ref_mutex);

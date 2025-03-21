@@ -55,10 +55,6 @@
 
 #define PERFORM_RESET_PROTECTION  _IOW(P61_MAGIC, 0x0D, long)
 
-#if defined(CONFIG_NXP_P73v1_DEVICES)
-#define ESE_PERFORM_HW_COLD_RESET  _IOW(P61_MAGIC, 0x0E, long)
-#endif
-
 struct p61_spi_platform_data {
 	unsigned int irq_gpio;
 	unsigned int rst_gpio;

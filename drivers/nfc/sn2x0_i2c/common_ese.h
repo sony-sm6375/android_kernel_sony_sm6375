@@ -1,6 +1,5 @@
 /******************************************************************************
  * Copyright (C) 2020-2021 NXP
- * Copyright 2021 Sony Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * NOTE: This file has been modified by Sony Corporation
- * Modifications are licensed under the License.
  ******************************************************************************/
 #ifndef _COMMON_ESE_H_
 #define _COMMON_ESE_H_
@@ -44,14 +41,6 @@
 #define ESE_CLD_RST_GUARD_TIME_MS		(3000)
 /* guard time to reboot after reset */
 #define ESE_CLD_RST_REBOOT_GUARD_TIME_MS	(50)
-
-#if defined(CONFIG_NFC_SN1X0_DEVICES)
-/* HW cold reset pin holding high time(10ms) */
-#ifdef HW_COLD_RESET
-#define ESE_HW_CLD_RST_HOLD_TIME_US		(10000)
-#endif
-#endif
-
 /* sources of reset protection and cold reset */
 enum reset_source {
 	SRC_SPI = 0,
@@ -69,9 +58,6 @@ enum ese_ioctl_request {
 	ESE_CLD_RST,		/* eSE COLD RESET */
 	ESE_RST_PROT_EN,	/* eSE RESET PROTECTION ENABLE */
 	ESE_RST_PROT_DIS,	/* eSE RESET PROTECTION DISABLE */
-#if defined(CONFIG_NFC_SN1X0_DEVICES)
-	ESE_HW_CLD_RST,		/* eSE HW COLD RESET(GPIO PIN) */
-#endif
 
 	/* similar ese reset requests from nfc service/hal/driver */
 	ESE_CLD_RST_NFC = ESE_CLD_RST | SRC_NFC,

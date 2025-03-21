@@ -26,13 +26,8 @@
 #include <linux/i2c.h>
 
 /* kept same as dts */
-#if defined(CONFIG_NFC_SN2X0_DEVICES)
 #define NFC_I2C_DRV_STR			"nxp,sn2x0-i2c"
 #define NFC_I2C_DRV_NAME		"sn2x0"
-#else
-#define NFC_I2C_DRV_STR			"nxp,sn1x0-i2c"
-#define NFC_I2C_DRV_NAME		"sn1x0"
-#endif
 #define NFC_I2C_DEV_ID			"pn553"
 
 /* Interface specific parameters */
