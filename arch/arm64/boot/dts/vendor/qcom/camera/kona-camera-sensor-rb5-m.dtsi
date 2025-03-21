@@ -90,7 +90,12 @@
 };
 
 &cam_cci1 {
+
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	actuator_rear_cam7: qcom,actuator2 {
+#else
 	actuator_front_cam7: qcom,actuator2 {
+#endif
 		cell-index = <7>;
 		compatible = "qcom,actuator";
 		cci-master = <0>;
@@ -102,7 +107,11 @@
 		rgltr-load-current = <100000>;
 	};
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	eeprom_rear_cam7: qcom,eeprom2 {
+#else
 	eeprom_front_cam7: qcom,eeprom2 {
+#endif
 		cell-index = <7>;
 		compatible = "qcom,eeprom";
 		cam_vio-supply = <&pm8009_l7>;
@@ -142,8 +151,13 @@
 		sensor-position-roll = <270>;
 		sensor-position-pitch = <0>;
 		sensor-position-yaw = <0>;
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		actuator-src = <&actuator_rear_cam7>;
+		eeprom-src = <&eeprom_rear_cam7>;
+#else
 		actuator-src = <&actuator_front_cam7>;
 		eeprom-src = <&eeprom_front_cam7>;
+#endif
 		cam_vio-supply = <&pm8009_l7>;
 		cam_vana-supply = <&pm8009_l6>;
 		cam_vdig-supply = <&pm8009_l2>;

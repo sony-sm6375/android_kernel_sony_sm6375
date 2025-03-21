@@ -37,7 +37,11 @@
 			qcom,pon_2 {
 				qcom,pon-type = <PON_POWER_ON_TYPE_RESIN>;
 				qcom,pull-up;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+				linux,code = <KEY_VOLUMEUP>;
+#else
 				linux,code = <KEY_VOLUMEDOWN>;
+#endif
 			};
 		};
 
@@ -136,7 +140,11 @@
 		#size-cells = <0>;
 
 		pm6125_pwm: qcom,pwms@b300 {
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+			status = "ok";
+#else
 			status = "disabled";
+#endif
 			compatible = "qcom,pwm-lpg";
 			reg = <0xb300>;
 			reg-names = "lpg-base";

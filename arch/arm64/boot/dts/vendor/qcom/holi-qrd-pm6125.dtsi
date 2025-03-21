@@ -264,6 +264,7 @@
 };
 
 &thermal_zones {
+#if !defined (CONFIG_ARCH_SONY_MURRAY)
 	quiet-therm-step {
 		polling-delay-passive = <2000>;
 		polling-delay = <0>;
@@ -381,6 +382,7 @@
 			};
 		};
 	};
+#endif
 
 	pa-therm0-step {
 		polling-delay-passive = <0>;

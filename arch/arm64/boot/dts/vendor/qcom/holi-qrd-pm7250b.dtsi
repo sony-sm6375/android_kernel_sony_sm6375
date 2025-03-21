@@ -1,13 +1,23 @@
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/iio/qti_power_supply_iio.h>
 #include "holi-pm7250b.dtsi"
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+#include "haptic_nv.dtsi"
+#include "haptic_ti.dtsi"
+#endif
 
 &soc {
+#if !defined (CONFIG_ARCH_SONY_ZAMBEZI)
 	qrd_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		#include "qg-batterydata-4790461_Huaqin_PDX213_ATL_4500mAH.dtsi"
+#else
 		#include "qg-batterydata-atl436186020H_3780mAh.dtsi"
 		#include "qg-batterydata-atl466271_3300mAh.dtsi"
+#endif
 	};
+#endif
 };
 
 &pm7250b_charger {
@@ -36,6 +46,9 @@
 		      <&pm7250b_qg PSY_IIO_CHARGE_COUNTER>,
 		      <&pm7250b_qg PSY_IIO_CYCLE_COUNT>,
 		      <&pm7250b_qg PSY_IIO_CHARGE_FULL_DESIGN>,
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		      <&pm7250b_qg PSY_IIO_TIME_TO_FULL_NOW>;
+#else
 		      <&pm7250b_qg PSY_IIO_TIME_TO_FULL_NOW>,
 		      <&smb1394_div2_cp_primary PSY_IIO_PARALLEL_MODE>,
 		      <&smb1394_div2_cp_primary PSY_IIO_PARALLEL_OUTPUT_MODE>,
@@ -44,6 +57,7 @@
 		      <&smb1394_div2_cp_primary PSY_IIO_CP_ENABLE>,
 		      <&smb1394_div2_cp_primary PSY_IIO_CP_ILIM>,
 		      <&smb1394_div2_cp_primary PSY_IIO_CP_DIE_TEMP>;
+#endif
 	io-channel-names = "usb_in_voltage",
 			   "usb_in_current",
 			   "chg_temp",
@@ -67,6 +81,9 @@
 			   "charge_counter",
 			   "cycle_count",
 			   "charge_full_design",
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+			   "time_to_full_now";
+#else
 			   "time_to_full_now",
 			   "cp_parallel_mode",
 			   "cp_parallel_output_mode",
@@ -75,23 +92,63 @@
 			   "cp_enable",
 			   "cp_ilim",
 			   "cp_die_temp";
+#endif
+#if !defined (CONFIG_ARCH_SONY_ZAMBEZI)
 	qcom,battery-data = <&qrd_batterydata>;
+#endif
 	qcom,sec-charger-config = <1>;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	qcom,auto-recharge-soc = <95>;
+#else
 	qcom,auto-recharge-soc = <98>;
+#endif
 	qcom,step-charging-enable;
 	qcom,sw-jeita-enable;
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	qcom,charger-temp-max = <600>;
+	qcom,smb-temp-max = <600>;
+#else
 	qcom,charger-temp-max = <800>;
 	qcom,smb-temp-max = <800>;
+#endif
 	qcom,suspend-input-on-debug-batt;
 	qcom,fcc-stepping-enable;
 	qcom,fcc-step-delay-ms = <100>;
 	qcom,fcc-step-size-ua = <100000>;
 	qcom,smb-internal-pull-kohm = <0>;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	qcom,otg-cl-ua = <1000000>;
+	qcom,hvdcp-disable;
+	qcom,chg-term-current-ma = <(-246)>;
+	qcom,chg-term-src = <1>;
+#endif
 	qcom,en-skin-therm-mitigation;
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	qcom,chg-term-current-ma = <(-250)>;
+#endif
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	qcom,serial-tx-gpio = <&tlmm 25 0>;
+	qcom,serial-rx-gpio = <&tlmm 26 0>;
+	qcom,thermal-mitigation = <4000000 3800000 3500000 3300000 3000000
+				2800000 2600000 2500000 2400000 2200000 2000000 1800000
+				1600000 1400000 1200000 1000000 800000 600000 400000
+				200000 100000>;
+#else
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	qcom,chg-term-src = <1>;
+	qcom,panel = <&dsi_samsung_amoled_cmd>;
+	//Pay attention to ensure that the two arrays are the same size
+	qcom,thermal-mitigation = <2000000 1500000 1000000
+				500000 100000 0 0>;
+	qcom,thermal-mitigation-sleep = <3300000 2500000 2000000
+				1500000 1000000 500000 100000>;
+#else
 	qcom,thermal-mitigation = <10000000 9500000 9000000 8500000 8000000
 				7500000 7000000 6500000 6000000 5500000 5000000 4500000
 				4000000 3500000 3000000 2500000 2000000 1500000 1000000
 				500000>;
+#endif
+#endif
 };
 
 &pm7250b_qg {
@@ -111,7 +168,15 @@
 			   "force_recharge",
 			   "charge_done",
 			   "cp_charging_enabled";
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	qcom,qg-iterm-ma = <561>;
+#else
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	qcom,qg-iterm-ma = <300>;
+#else
 	qcom,qg-iterm-ma = <150>;
+#endif
+#endif
 	qcom,hold-soc-while-full;
 	qcom,linearize-soc;
 	qcom,cl-feedback-on;
@@ -179,6 +244,18 @@
 };
 
 &pm7250b_vadc {
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	pinctrl-names = "default";
+	pinctrl-0 = <&get_stageid_adc_mb_default>;
+
+	get_stageid_adc_mb {
+		reg = <ADC5_AMUX_THM4_100K_PU>;
+		label = "get_stageid_adc_mb";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};
+#endif
 	smb1390_therm@e {
 		qcom,scale-fn-type = <ADC_SCALE_HW_CALIB_PM5_SMB1398_TEMP>;
 	};
@@ -195,11 +272,22 @@
 			power-source = <0>;
 		};
 	};
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	get_stageid_adc_mb {
+		get_stageid_adc_mb_default: get_stageid_adc_mb_default {
+			pins = "gpio1";
+			bias-high-impedance;
+		};
+	};
+#endif
 };
 
 &qupv3_se10_i2c {
 	status = "ok";
 	#include "smb1394.dtsi"
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	#include "aw2016.dtsi"
+#endif
 };
 
 &smb1394 {
@@ -232,9 +320,11 @@
 	status = "ok";
 };
 
+#if !defined (CONFIG_ARCH_SONY_MURRAY)
 &thermal_zones {
 	quiet-therm-step {
 		cooling-maps {
+#if !defined (CONFIG_ARCH_SONY_ZAMBEZI)
 			battery-cdev0 {
 				trip = <&battery_trip0>;
 				cooling-device = <&pm7250b_charger 6 6>;
@@ -259,6 +349,8 @@
 				trip = <&battery_trip4>;
 				cooling-device = <&pm7250b_charger 18 18>;
 			};
+#endif
 		};
 	};
 };
+#endif

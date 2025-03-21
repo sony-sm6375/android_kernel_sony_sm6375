@@ -5,6 +5,9 @@
 #include "holi-thermal-overlay-pm6125.dtsi"
 #include "display/holi-sde-display-mtp-pm6125.dtsi"
 #include "display/blair-sde-display-mtp.dtsi"
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+#include "blair-fingerprint.dtsi"
+#endif
 
 
 
@@ -108,6 +111,7 @@
 		status = "ok";
 };
 
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI)
 &qupv3_se0_i2c {
 	status = "ok";
 	#address-cells = <1>;
@@ -130,6 +134,7 @@
 		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend>;
 	};
 };
+#endif
 
 &soc {
 	gpio_keys {
@@ -167,6 +172,69 @@
 
 &qupv3_se8_i2c {
 	status = "okay";
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+	qcom,i2c-touch-active="focaltech,fts";
+
+	focaltech@38{ 
+		compatible = "focaltech,fts"; 
+		reg = <0x38>;       
+		interrupt-parent = <&tlmm>;
+		interrupts = <22 0x02>;
+		//vdd-supply = <&L13A>;
+		//vcc_i2c-supply = <&pm8916_l16>;
+		focaltech,reset-gpio = <&tlmm 21 0x01>;
+		focaltech,irq-gpio = <&tlmm 22 0x02>; 
+		focaltech,max-touch-number = <10>;   
+		focaltech,display-coords =  <0 0 1080 2520>;  
+		focaltech,avdd-gpio = <&tlmm 59 0x0>;
+		pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_release";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&pmx_ts_release>;
+
+		//focaltech,regulator_dvdd = "vdd";
+		/*
+			focaltech,have-key;
+			focaltech,key-number = <3>; 
+			focaltech,keys = <139 102 158>;  
+			focaltech,key-x-coords = <200 600 800>;
+			focaltech,key-y-coords = <2000 2000 2000>; 
+		*/
+		panel = <&dsi_samsung_amoled_cmd>;
+	};
+#elif defined(CONFIG_ARCH_SONY_MURRAY)
+	qcom,i2c-touch-active="sec,sec_ts";
+
+	sec_ts@48 {
+		compatible = "sec,sec_ts";
+		reg = <0x48>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <22 0x2008>;
+		pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
+						"pmx_ts_release";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&pmx_ts_release>;
+		vdd-supply = <&L13A>;
+		//avdd-supply = <&L6A>;
+		sec,irq-gpio = <&tlmm 22 0x2008>;
+		sec,irq_type = <8200>;
+		sec,reset-gpio = <&tlmm 21 0x00>;
+		sec,avdd-en-gpio = <&tlmm 59 0x00>;
+		sec,mis_cal_check = <1>;
+		sec,regulator_dvdd = "vdd";
+		//sec,regulator_avdd = "avdd";
+		sec,regulator_boot_on;
+		sec,i2c-burstmax = <32>;
+		sec,project_name = "PJT", "MODEL";
+		sec,max_coords = <1080 2520>;
+		sec,always_lpmode = <0>;
+		sec,bringup = <0>;
+		sec,firmware_name = "s6sy761_p213.bin";
+
+		panel = <&dsi_samsung_amoled_cmd>;
+	};
+#else
 	qcom,i2c-touch-active="synaptics,tcm-i2c";
 
 	synaptics_tcm@20 {
@@ -197,6 +265,7 @@
 		panel = <&dsi_rm69299_visionox_amoled_video
 			&dsi_rm69299_visionox_amoled_cmd>;
 	};
+#endif
 };
 
 &qupv3_se10_i2c {
