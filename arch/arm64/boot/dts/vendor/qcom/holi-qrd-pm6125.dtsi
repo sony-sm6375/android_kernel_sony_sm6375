@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include "holi-audio-overlay.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
@@ -264,6 +265,7 @@
 };
 
 &thermal_zones {
+#if !defined (CONFIG_ARCH_SONY_MURRAY)
 	quiet-therm-step {
 		polling-delay-passive = <2000>;
 		polling-delay = <0>;
@@ -381,6 +383,7 @@
 			};
 		};
 	};
+#endif
 
 	pa-therm0-step {
 		polling-delay-passive = <0>;

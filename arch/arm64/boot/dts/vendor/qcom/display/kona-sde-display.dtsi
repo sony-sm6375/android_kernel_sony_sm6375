@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include "dsi-panel-sw43404-amoled-dsc-wqhd-cmd.dtsi"
 #include "dsi-panel-sw43404-amoled-dsc-wqhd-video.dtsi"
 #include "dsi-panel-sw43404-amoled-dsc-fhd-plus-cmd.dtsi"
@@ -11,7 +12,9 @@
 #include "dsi-panel-nt35695b-truly-fhd-cmd.dtsi"
 #include "dsi-panel-nt35695b-truly-fhd-video.dtsi"
 #include "dsi-panel-ext-bridge-1080p.dtsi"
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 #include "dsi-panel-ext-bridge-4k-video.dtsi"
+#endif
 #include "dsi-panel-sim-cmd.dtsi"
 #include "dsi-panel-sim-video.dtsi"
 #include "dsi-panel-sim-dsc375-cmd.dtsi"
@@ -276,6 +279,7 @@
 	};
 };
 
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 &dsi_ext_bridge_4k_vid {
 	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
 	qcom,mdss-dsi-display-timings {
@@ -287,6 +291,7 @@
 		};
 	};
 };
+#endif
 
 &dsi_sw43404_amoled_cmd {
 	qcom,ulps-enabled;

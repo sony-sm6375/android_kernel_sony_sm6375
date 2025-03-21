@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include <dt-bindings/interconnect/qcom,holi.h>
 
 &soc {
@@ -286,7 +287,11 @@
 		dma-names = "tx", "rx";
 		qcom,wrapper-core = <&qupv3_1>;
 		qcom,rtl_se;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+		status = "okay";
+#else
 		status = "disabled";
+#endif
 	};
 
 	qupv3_se8_i2c: i2c@4c88000 {
@@ -328,7 +333,15 @@
 		dma-names = "tx", "rx";
 		qcom,shared;
 		qcom,wrapper-core = <&qupv3_1>;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+		status = "ok";
+#else
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		status = "okay";
+#else
 		status = "disabled";
+#endif
+#endif
 	};
 
 };

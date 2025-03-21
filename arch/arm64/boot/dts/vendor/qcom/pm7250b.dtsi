@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/spmi/spmi.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -31,6 +32,10 @@
 				3500000 3000000 2500000 2000000 1500000
 				1000000 500000>;
 			qcom,hvdcp2-max-icl-ua = <2000000>;
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+			qcom,fcc-max-ua = <3300000>;
+			qcom,otg-cl-ua = <1500000>;
+#endif
 
 			qcom,chgr@1000 {
 				reg = <0x1000>;
@@ -185,8 +190,12 @@
 			depends-on-supply = <&pm7250b_vadc>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+			//cutoff voltage change to 3.4V from 3.2V
+			qcom,vbatt-cutoff-mv = <3400>;
+#else
 			qcom,vbatt-cutoff-mv = <3200>;
+#endif
 			qcom,vbatt-low-mv = <3300>;
 			qcom,vbatt-low-cold-mv = <3700>;
 			qcom,vbatt-empty-mv = <3000>;
@@ -405,8 +414,12 @@
 					  "fr-swap";
 
 			qcom,default-sink-caps = <5000 3000>, /* 5V @ 3A */
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+						 <9000 3000>; /* 9V @ 3A */
+#else
 						 <9000 3000>, /* 9V @ 3A */
 						 <12000 2250>; /* 12V @ 2.25A */
+#endif
 		};
 	};
 

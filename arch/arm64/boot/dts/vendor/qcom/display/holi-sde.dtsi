@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include "holi-sde-common.dtsi"
 #include <dt-bindings/clock/mdss-10nm-pll-clk.h>
 
@@ -145,7 +146,9 @@
 &mdss_dsi_phy0 {
 	vdda-0p9-supply = <&S5A_LEVEL>;
 	qcom,panel-allow-phy-poweroff;
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 	qcom,dsi-pll-ssc-en;
+#endif
 	qcom,dsi-pll-ssc-mode = "down-spread";
 	memory-region = <&dfps_data_memory>;
 };

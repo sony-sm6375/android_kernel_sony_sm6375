@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include "holi-audio-overlay.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
@@ -113,6 +114,7 @@
 		status = "ok";
 };
 
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI)
 &qupv3_se0_i2c {
 	status = "ok";
 	#address-cells = <1>;
@@ -135,6 +137,7 @@
 		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend>;
 	};
 };
+#endif
 
 &soc {
 	gpio_keys {

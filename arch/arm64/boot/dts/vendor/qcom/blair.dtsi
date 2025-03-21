@@ -1,3 +1,4 @@
+#include <generated/autoconf.h>
 #include <dt-bindings/clock/qcom,dispcc-blair.h>
 #include <dt-bindings/clock/qcom,gcc-blair.h>
 #include <dt-bindings/clock/qcom,gpucc-blair.h>
@@ -17,7 +18,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. Blair ";
 	compatible = "qcom,blair";
-	qcom,msm-id = <507 0x10000>, <578 0x10000>;
+	qcom,msm-id = <507 0x10000>, <578 0x10000>, <647 0x10000>;
 	interrupt-parent = <&intc>;
 
 	#address-cells = <2>;
@@ -51,6 +52,18 @@
 		hsuart0 = &qupv3_se1_4uart;
 		swr0 = &swr0;
 		swr1 = &swr1;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+		i2c0 = &qupv3_se0_i2c;
+		i2c1 = &qupv3_se7_i2c;
+		i2c2 = &qupv3_se10_i2c;
+		i2c3 = &qupv3_se8_i2c;
+#endif
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		i2c0 = &qupv3_se7_i2c;
+		i2c1 = &qupv3_se8_i2c;
+		i2c2 = &qupv3_se10_i2c;
+		i2c3 = &qupv3_se0_i2c;
+#endif
 	};
 
 	firmware: firmware {};
@@ -251,6 +264,18 @@
 	};
 
 	soc: soc { };
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+	hwinfo:HardwareInfo {
+		compatible = "huaqin,HardwareInfo";
+		pcb_type_gpios0 = <&tlmm 47 0 >;
+		pcb_type_gpios1 = <&tlmm 52 0 >;
+		pcb_type_gpios2 = <&tlmm 53 0 >;
+		sd_ufs_card_det_gpio = <&tlmm 94 0 >;
+		pinctrl-names = "default";
+		pinctrl-0=<&pcb_type_default>;
+		status = "okay";
+	};
+#endif
 };
 
 &firmware {
@@ -440,6 +465,41 @@
 		alignment = <0x0 0x100000>;
 		size = <0x0 0x800000>;
 	};
+
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+    debug_region: debug_region@ffb00000 {
+		compatible = "removed-dma-pool", "qcom,debug_memory";
+		no-map;
+		reg = <0 0xffb00000 0 0xc0000>;
+		label = "debug_mem";
+	};
+
+	last_log_region: last_log_region@ffbc0000 {
+		compatible = "removed-dma-pool", "qcom,last_log_memory";
+		no-map;
+		reg = <0 0xffbc0000 0 0x80000>;
+		label = "last_log";
+		phandle = "log";
+	};
+
+	ramoops: ramoops@ffc40000 {
+		compatible = "removed-dma-pool", "ramoops";
+		no-map;
+		reg = <0 0xffc40000 0 0x000b0000>;
+		record-size = <0x1000>;
+		console-size = <0x40000>;
+		ftrace-size = <0x0>;
+		msg-size = <0x20000 0x20000>;
+		cc-size = <0x0>;
+	};
+
+	cmdline_region: cmdline_region@ffd00000 {
+		compatible = "removed-dma-pool", "cmdline_region";
+		no-map;
+		reg = <0 0xffd00000 0 0x1000>;
+		label = "cmdline_region";
+	};
+#endif
 };
 
 &soc {
@@ -964,7 +1024,11 @@
 		reg-names = "wdt-base";
 		interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>,
 					<0 1 IRQ_TYPE_LEVEL_HIGH>;
+#ifdef CONFIG_ARCH_SONY_MURRAY
+		qcom,bark-time = <15000>;
+#else
 		qcom,bark-time = <11000>;
+#endif
 		qcom,pet-time = <9360>;
 		qcom,ipi-ping;
 		qcom,wakeup-enable;
@@ -2286,6 +2350,10 @@
 				qcom,intents = <0x800  5
 						0x2000 3
 						0x4400 2>;
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+				qcom,non-wake-svc = <0x51
+						0x190>;
+#endif
 			};
 
 			qcom,adsp_glink_ssr {
@@ -2772,8 +2840,10 @@
 		non-removable;
 		supports-cqe;
 
+#if !defined(CONFIG_ARCH_SONY_MURRAY)
 		no-sd;
 		no-sdio;
+#endif
 
 		qcom,devfreq,freq-table = <50000000 200000000>;
 		qcom,scaling-lower-bus-speed-mode = "DDR52";
@@ -2839,8 +2909,10 @@
 		iommus = <&apps_smmu 0x40 0x0>;
 		qcom,iommu-dma = "bypass";
 
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		no-mmc;
 		no-sdio;
+#endif
 
 		qcom,devfreq,freq-table = <50000000 202000000>;
 
@@ -3258,6 +3330,52 @@
 		};
 	};
 
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+    restart-reason {
+		compatible = "qcom,restart-reason";
+		unknown {
+			cmd = "unknown";
+			reg-val = <0x00 0x77665501>;
+		};
+
+		recovery {
+			cmd = "recovery";
+			reg-val = <0x01 0x77665500>;
+			reboot-cmd;
+		};
+
+		bootloader {
+			cmd = "bootloader";
+			reg-val = <0x02 0x77665500>;
+			reboot-cmd;
+		};
+
+		rtc {
+			cmd = "rtc";
+			reg-val = <0x03 0x77665500>;
+			reboot-cmd;
+		};
+
+		dm-verity-device-corrupted {
+			cmd = "dm-verity device corrupted";
+			reg-val = <0x04 0x77665508>;
+			reboot-cmd;
+		};
+
+		dm-verity-enforcing {
+			cmd = "dm-verity enforcing";
+			reg-val = <0x05 0x77665509>;
+			reboot-cmd;
+		};
+
+		keys-clear {
+			cmd = "keys clear";
+			reg-val = <0x06 0x7766550A>;
+			reboot-cmd;
+		};
+	};
+#endif
+
 	qfprom: qfprom@1b40000 {
 		compatible = "qcom,qfprom";
 		reg = <0x1b40000 0x7000>;
@@ -3331,6 +3449,26 @@
 #include "holi-audio.dtsi"
 #include "blair-usb.dtsi"
 #include "ipcc-test-holi.dtsi"
+
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI) || defined(CONFIG_ARCH_SONY_MURRAY)
+&tlmm {
+	pcb_type_pins: pcb_type_pins {
+		pcb_type_default: pcb_type_default {
+			mux {
+				pins = "gpio53";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio53";
+				drive-strength = <2>;
+				bias-pull-down;         /* PULL DOWN */
+				input-enable;
+			};
+		};
+	};
+};
+#endif
 
 &L7A {
 	regulator-min-microvolt = <720000>;
@@ -3872,3 +4010,9 @@
 };
 
 #include "msm-rdbg.dtsi"
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+#include "somc-zambezi-nfc.dtsi"
+#endif
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+#include "somc-murray-nfc.dtsi"
+#endif
