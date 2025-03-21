@@ -425,7 +425,7 @@
 
 	wsa881x_analog_reset_gpio: wsa_reset_gpio {
 		compatible = "qcom,msm-cdc-pinctrl";
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&spkr_2_sd_n_active>;
 		pinctrl-1 = <&spkr_2_sd_n_sleep>;

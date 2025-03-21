@@ -1212,7 +1212,7 @@
 		};
 
 		pm8008_active: pm8008_active {
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 			mux {
 				pins = "gpio58";
 				function = "gpio";

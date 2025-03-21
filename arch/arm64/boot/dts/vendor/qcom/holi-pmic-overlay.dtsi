@@ -422,7 +422,7 @@
 		reg = <0x8>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) || !defined(CONFIG_ARCH_SONY_MURRAY)
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
 		pinctrl-names = "default";
 		pinctrl-0 = <&pm8008_active>;
 #endif
