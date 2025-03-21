@@ -30240,7 +30240,9 @@ typedef struct {
      * the host can interpret the data[] contents, and if so, how to
      * interpret them.
      */
+#if !defined(CONFIG_ARCH_SONY_ZAMBEZI) && !defined(CONFIG_ARCH_SONY_MURRAY)
     A_UINT32 data_type;
+#endif
     /* This structure is used to send REQ binary blobs
      * from firmware to application/service where Host drv is pass through.
      * Alternatively, by specifying in the data_type field what kind of
