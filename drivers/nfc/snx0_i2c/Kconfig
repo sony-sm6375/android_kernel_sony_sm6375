@@ -1,0 +1,32 @@
+#
+# Nxp Nci protocol (I2C) devices
+#
+
+config NFC_SNX0_DEVICES
+        tristate "NXP NCI based NFC I2C Slave Driver for SNxxx"
+        depends on I2C
+	---help---
+	  This enables the NFC driver for SNxxx based devices.
+	  This is for I2C connected version. NCI protocol logic
+	  resides in the usermode and it has no other NFC dependencies.
+
+	  If unsure, say N.
+
+config NFC_SN1X0_DEVICES
+        bool "NXP NCI based NFC I2C Slave Driver for SNxxx"
+        depends on NFC_SNX0_DEVICES
+	---help---
+	  You'll have to say Y if your computer contains an I2C device that
+	  you want to use under Linux.
+
+	  You can say N here if you don't have any SPI connected to your computer.
+
+config NFC_SN2X0_DEVICES
+	bool "NXP NCI based NFC I2C Slave Driver for SNxxx"
+	depends on NFC_SNX0_DEVICES
+	help
+	  This enables the NFC driver for SNxxx based devices.
+	  This is for I2C connected version. NCI protocol logic
+	  resides in the usermode and it has no other NFC dependencies.
+
+	  If unsure, say N.

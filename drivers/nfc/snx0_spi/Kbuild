@@ -1,0 +1,7 @@
+#
+# Kernel module make instructions go here.
+#
+KBUILD_EXTRA_SYMBOLS := $(shell pwd)/../../$(SNX0_I2C_PATH)/Module.symvers
+obj-m := p73.o
+#ccflags-y := -DDEBUG
+#ccflags-y += -DDYNAMIC_DEBUG_MODULE
