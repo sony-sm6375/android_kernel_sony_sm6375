@@ -138,6 +138,9 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (brightness > c_conn->thermal_max_brightness)
 		brightness = c_conn->thermal_max_brightness;
 
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
+		dsi_display->panel->bl_config.brightness = brightness;
+	}
 	/* map UI brightness into driver backlight level with rounding */
 	bl_lvl = mult_frac(brightness, bl_max_level, brightness_max_level);
 
@@ -2539,12 +2542,19 @@ static void sde_connector_check_status_work(struct work_struct *work)
 	struct sde_connector *conn;
 	int rc = 0;
 	struct device *dev;
+	unsigned int flag_gpio = 452;
+	int err_flag = 0;
 
 	conn = container_of(to_delayed_work(work),
 			struct sde_connector, status_work);
 	if (!conn) {
 		SDE_ERROR("not able to get connector object\n");
 		return;
+	}
+
+	if(gpio_is_valid(flag_gpio)){
+		err_flag = gpio_get_value(flag_gpio);
+		SDE_ERROR("Check err_flag status %d\n", err_flag);
 	}
 
 	mutex_lock(&conn->lock);
@@ -2560,7 +2570,7 @@ static void sde_connector_check_status_work(struct work_struct *work)
 	rc = conn->ops.check_status(&conn->base, conn->display, false);
 	mutex_unlock(&conn->lock);
 
-	if (rc > 0) {
+	if ((rc > 0) && (err_flag == 0)) {
 		u32 interval;
 
 		SDE_DEBUG("esd check status success conn_id: %d enc_id: %d\n",
