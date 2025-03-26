@@ -15,6 +15,11 @@
 #include "cam_res_mgr_api.h"
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+#include "../cam_ois_dw9781/dw9781_ois.h"
+#else
+#include "../cam_ois_dw9784/dw9784_ois.h"
+#endif
 
 int32_t cam_ois_construct_default_power_setting(
 	struct cam_sensor_power_ctrl_t *power_info)
@@ -218,6 +223,7 @@ static int cam_ois_update_time(struct i2c_settings_array *i2c_set)
 	uint32_t size = 0;
 	uint32_t i = 0;
 	uint64_t qtime_ns = 0;
+	uint64_t qtime_ms = 0;
 
 	if (i2c_set == NULL) {
 		CAM_ERR(CAM_OIS, "Invalid Args");
@@ -237,17 +243,25 @@ static int cam_ois_update_time(struct i2c_settings_array *i2c_set)
 		if (i2c_list->op_code ==  CAM_SENSOR_I2C_WRITE_SEQ) {
 			size = i2c_list->i2c_settings.size;
 			/* qtimer is 8 bytes so validate here*/
-			if (size < 8) {
+			/* for ois dw9781,Qtime reg is 0x70db, qtime reg count is 1, reg datatype is 2 bytes*/
+			if (size < 1) {
 				CAM_ERR(CAM_OIS, "Invalid write time settings");
 				return -EINVAL;
 			}
-			for (i = 0; i < size; i++) {
-				CAM_DBG(CAM_OIS, "time: reg_data[%d]: 0x%x",
+			/* dw9781 qtime unit 0.1ms*/
+			qtime_ms = qtime_ns/100000;
+			i2c_list->i2c_settings.reg_setting[i].reg_data = (qtime_ms) & 0xFFFF;
+			for (i = 0; i < 8; i++) {
+				CAM_DBG(CAM_OIS, "time-ns: reg_data[%d]: 0x%x",
 					i, (qtime_ns & 0xFF));
-				i2c_list->i2c_settings.reg_setting[i].reg_data =
-					(qtime_ns & 0xFF);
 				qtime_ns >>= 8;
 			}
+			for (i = 0; i < 8; i++) {
+				CAM_DBG(CAM_OIS, "time-ms: reg_data[%d]: 0x%x",
+					i, (qtime_ms & 0xFF));
+				qtime_ms >>= 8;
+			}
+
 		}
 	}
 
@@ -307,6 +321,16 @@ static int cam_ois_apply_settings(struct cam_ois_ctrl_t *o_ctrl,
 					CAM_ERR(CAM_OIS,
 						"i2c poll apply setting Fail");
 					return rc;
+				}else if (0 == rc) {
+					CAM_INFO(CAM_OIS,
+							"i2c poll success for ois: address 0x%4X, data 0x%4X",
+							i2c_list->i2c_settings.reg_setting[i].reg_addr,
+							i2c_list->i2c_settings.reg_setting[i].reg_data);
+				}else if (1 == rc){
+					CAM_INFO(CAM_OIS,
+							"i2c poll failed, ois not in right status: address 0x%4X, data 0x%4X",
+							i2c_list->i2c_settings.reg_setting[i].reg_addr,
+							i2c_list->i2c_settings.reg_setting[i].reg_data);
 				}
 			}
 		}
@@ -680,7 +704,16 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				goto pwr_dwn;
 			}
 		}
-
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		rc = dw9781_download_ois_fw(o_ctrl);
+#else
+		rc = dw9784_download_open_camera(o_ctrl);
+#endif
+		if(rc < 0){
+			CAM_ERR(CAM_OIS, "Failed OIS init failed");
+			goto pwr_dwn;
+		}
+		/*
 		rc = cam_ois_apply_settings(o_ctrl, &o_ctrl->i2c_init_data);
 		if ((rc == -EAGAIN) &&
 			(o_ctrl->io_master_info.master_type == CCI_MASTER)) {
@@ -696,16 +729,27 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				rc);
 			goto pwr_dwn;
 		}
-
+		*/
 		if (o_ctrl->is_ois_calib) {
+			/*
 			rc = cam_ois_apply_settings(o_ctrl,
 				&o_ctrl->i2c_calib_data);
 			if (rc) {
 				CAM_ERR(CAM_OIS, "Cannot apply calib data");
 				goto pwr_dwn;
 			}
+			*/
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+			rc = gyro_offset_calibrtion(o_ctrl);
+			if(rc < 0){
+#else
+			rc = dw9784_gyro_ofs_calibration(o_ctrl);
+			if (rc) {
+#endif
+				CAM_ERR(CAM_OIS, "dw9784 gyro cali failed");
+				goto pwr_dwn;
+			}
 		}
-
 		rc = delete_request(&o_ctrl->i2c_init_data);
 		if (rc < 0) {
 			CAM_WARN(CAM_OIS,
@@ -746,7 +790,9 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			CAM_ERR(CAM_OIS, "Cannot apply mode settings");
 			goto end;
 		}
-
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+		dw9784_ois_status(o_ctrl);
+#endif
 		rc = delete_request(i2c_reg_settings);
 		if (rc < 0) {
 			CAM_ERR(CAM_OIS,
@@ -1012,6 +1058,9 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 
 		if (o_ctrl->cam_ois_state == CAM_OIS_CONFIG) {
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+			dw9781_exit();
+#endif
 			rc = cam_ois_power_down(o_ctrl);
 			if (rc < 0) {
 				CAM_ERR(CAM_OIS, "OIS Power down failed");

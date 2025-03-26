@@ -28,12 +28,13 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 	struct cam_eeprom_memory_block_t *block)
 {
 	int                                rc = 0;
-	int                                j;
+	int                                j, index;
 	struct cam_sensor_i2c_reg_setting  i2c_reg_settings = {0};
 	struct cam_sensor_i2c_reg_array    i2c_reg_array = {0};
 	struct cam_eeprom_memory_map_t    *emap = block->map;
 	struct cam_eeprom_soc_private     *eb_info = NULL;
 	uint8_t                           *memptr = block->mapdata;
+	struct cam_eeprom_soc_private  *soc_private;
 
 	if (!e_ctrl) {
 		CAM_ERR(CAM_EEPROM, "e_ctrl is NULL");
@@ -41,6 +42,7 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 	}
 
 	eb_info = (struct cam_eeprom_soc_private *)e_ctrl->soc_info.soc_private;
+	soc_private = (struct cam_eeprom_soc_private *)e_ctrl->soc_info.soc_private;
 
 	for (j = 0; j < block->num_map; j++) {
 		CAM_DBG(CAM_EEPROM, "slave-addr = 0x%X", emap[j].saddr);
@@ -104,6 +106,33 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 		}
 
 		if (emap[j].mem.valid_size) {
+			if(soc_private->i2c_info.slave_addr == 0x40){
+                CAM_DBG(CAM_EEPROM, "hi846_front otp valid_size is %d", emap[j].mem.valid_size);
+                for(index = 0; index <emap[j].mem.valid_size; index++, memptr++) {
+                    rc = camera_io_dev_read_seq(&e_ctrl->io_master_info,
+                         emap[j].mem.addr, memptr,
+                         emap[j].mem.addr_type,
+                         emap[j].mem.data_type, 1);
+			        if (rc < 0) {
+				        CAM_ERR(CAM_EEPROM, "read failed rc %d",rc);
+				        return rc;
+                    }
+                }
+            }else if (soc_private->i2c_info.slave_addr == 0x42)
+			{
+				CAM_DBG(CAM_EEPROM, "hi846_back otp valid_size is %d", emap[j].mem.valid_size);
+                for(index = 0; index <emap[j].mem.valid_size; index++, memptr++) {
+                    rc = camera_io_dev_read_seq(&e_ctrl->io_master_info,
+                         emap[j].mem.addr, memptr,
+                         emap[j].mem.addr_type,
+                         emap[j].mem.data_type, 1);
+			        if (rc < 0) {
+				        CAM_ERR(CAM_EEPROM, "read failed rc %d",rc);
+				        return rc;
+                    }
+                }
+			}
+            else{
 			rc = camera_io_dev_read_seq(&e_ctrl->io_master_info,
 				emap[j].mem.addr, memptr,
 				emap[j].mem.addr_type,
@@ -113,8 +142,9 @@ static int cam_eeprom_read_memory(struct cam_eeprom_ctrl_t *e_ctrl,
 				CAM_ERR(CAM_EEPROM, "read failed rc %d",
 					rc);
 				return rc;
-			}
-			memptr += emap[j].mem.valid_size;
+				}
+				memptr += emap[j].mem.valid_size;
+		    }
 		}
 
 		if (emap[j].pageen.valid_size) {

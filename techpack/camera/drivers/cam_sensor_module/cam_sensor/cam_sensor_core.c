@@ -12,7 +12,86 @@
 #include "cam_trace.h"
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
+#include "linux/hardware_info.h"
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+#include "../cam_ois_dw9781/dw9781_ois.h"
+#else
+#include "../cam_ois_dw9784/dw9784_ois.h"
+#endif
+#include "../cam_ois/cam_ois_dev.h"
+#include <linux/string.h>
+#include <linux/slab.h>
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+/* For SM5038 Flash LED */
+enum sm5038_fled_mode {
+	SM5038_FLED_MODE_OFF = 1,
+	SM5038_FLED_MODE_MAIN_FLASH,
+	SM5038_FLED_MODE_TORCH_FLASH,
+	SM5038_FLED_MODE_PREPARE_FLASH,
+	SM5038_FLED_MODE_CLOSE_FLASH,
+	SM5038_FLED_MODE_PRE_FLASH,
+};
+
+extern int32_t sm5038_fled_mode_ctrl(int state, uint32_t brightness);
+
+static void cam_sensor_write_hwinfo(uint32_t cell_index)
+{
+	switch(cell_index){
+		case 0:
+			get_hardware_info_data(HWID_MAIN_CAM, "IMX486 TXD Main");
+			CAM_INFO(CAM_SENSOR,"hwinfo cell_index =%d, imx486", cell_index);
+			break;
+		case 1:
+			get_hardware_info_data(HWID_SUB_CAM, "HI846 LCE Front");
+			CAM_INFO(CAM_SENSOR,"hwinfo cell_index =%d, hi846 front", cell_index);
+			break;
+		case 2:
+			get_hardware_info_data(HWID_MAIN_CAM_2, "HI846 LCE Wide");
+			CAM_INFO(CAM_SENSOR,"hwinfo cell_index =%d, hi846 wide", cell_index);
+			break;
+		case 3:
+			get_hardware_info_data(HWID_MAIN_CAM_3, "HI847 TXD Tele");
+			CAM_INFO(CAM_SENSOR,"hwinfo cell_index =%d, hi847 tele", cell_index);
+		}
+}
+#endif
+
+#define THERMAL_MULT 1000
+
+void cam_sensor_fill_thermal_zone(struct cam_sensor_ctrl_t *s_ctrl)
+{
+
+	int rc = 0;
+	uint32_t sensor_temperature = 0;
+	uint32_t temperature_addr = 0x013A; // TEMP_SEN_OUT Address
+	struct cam_camera_slave_info *slave_info;
+
+	slave_info = &(s_ctrl->sensordata->slave_info);
+
+	if (!slave_info) {
+		CAM_ERR(CAM_SENSOR, " failed: %pK",
+			 slave_info);
+		return;
+	}
+
+	rc = camera_io_dev_read(
+		&(s_ctrl->io_master_info),
+		temperature_addr,
+		&sensor_temperature,
+		CAMERA_SENSOR_I2C_TYPE_WORD,  // addr_type
+		CAMERA_SENSOR_I2C_TYPE_BYTE); // data_type
+
+	CAM_DBG(CAM_SENSOR, "rc %d read a: 0x%x v: %d for sensor id 0x%x:",
+		rc, temperature_addr, sensor_temperature, slave_info->sensor_id);
+
+	if(rc == 0) {
+		s_ctrl->thermal_info.thermal = sensor_temperature * THERMAL_MULT;
+		s_ctrl->thermal_info.status = true;
+	} else {
+		s_ctrl->thermal_info.status = rc;
+	}
+}
 
 static int cam_sensor_update_req_mgr(
 	struct cam_sensor_ctrl_t *s_ctrl,
@@ -241,6 +320,15 @@ static int32_t cam_sensor_i2c_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 			goto end;
 		}
 
+#if defined (CONFIG_ARCH_SONY_MURRAY)
+		if(s_ctrl->sensordata->slave_info.sensor_id == 0x486) {
+#else
+		if (s_ctrl->sensordata->slave_info.sensor_id == 0x582 &&
+			(csl_packet->header.request_id % 3 == 0)) {
+#endif
+			cam_sensor_fill_thermal_zone(s_ctrl);
+		}
+
 		i2c_reg_settings =
 			&i2c_data->per_frame[csl_packet->header.request_id %
 				MAX_PER_FRAME_ARRAY];
@@ -288,6 +376,13 @@ static int32_t cam_sensor_i2c_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 				"Rxed NOP packets without linking");
 			goto end;
 		}
+
+#if defined(CONFIG_ARCH_SONY_ZAMBEZI)
+		if (s_ctrl->sensordata->slave_info.sensor_id == 0x582 &&
+			(csl_packet->header.request_id % 3 == 0)) {
+			cam_sensor_fill_thermal_zone(s_ctrl);
+		}
+#endif
 
 		i2c_reg_settings =
 			&i2c_data->per_frame[csl_packet->header.request_id %
@@ -720,7 +815,11 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 	int rc = 0, pkt_opcode = 0;
 	struct cam_control *cmd = (struct cam_control *)arg;
 	struct cam_sensor_power_ctrl_t *power_info = NULL;
-	if (!s_ctrl || !arg) {
+#if !defined(CONFIG_ARCH_SONY_MURRAY)
+	struct cam_ois_ctrl_t o_ctrl = {0};
+#endif
+
+	if (!s_ctrl || !arg)  {
 		CAM_ERR(CAM_SENSOR, "s_ctrl is NULL");
 		return -EINVAL;
 	}
@@ -803,6 +902,17 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			s_ctrl->sensordata->slave_info.sensor_slave_addr,
 			s_ctrl->sensordata->slave_info.sensor_id);
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		cam_sensor_write_hwinfo(s_ctrl->id);
+#else
+		if (s_ctrl->sensordata->slave_info.sensor_id == 0x582) {
+			CAM_INFO(CAM_SENSOR, "imx582 check ois firmware begin");
+			memcpy((void*)(&o_ctrl.io_master_info), (void*)(&(s_ctrl->io_master_info)), sizeof(struct camera_io_master));
+			o_ctrl.io_master_info.cci_client->sid = 0xE4 >> 1;
+			dw9784_download_open_camera(&o_ctrl);
+			s_ctrl->io_master_info.cci_client->sid = 0x34 >> 1;
+		}
+#endif
 		rc = cam_sensor_power_down(s_ctrl);
 		if (rc < 0) {
 			CAM_ERR(CAM_SENSOR, "fail in Sensor Power Down");
@@ -870,6 +980,9 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		}
 
 		rc = cam_sensor_power_up(s_ctrl);
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		sm5038_fled_mode_ctrl(SM5038_FLED_MODE_PREPARE_FLASH, 0);
+#endif
 		if (rc < 0) {
 			CAM_ERR(CAM_SENSOR, "Sensor Power up failed");
 			goto release_mutex;
@@ -902,6 +1015,9 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			goto release_mutex;
 		}
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		sm5038_fled_mode_ctrl(SM5038_FLED_MODE_CLOSE_FLASH, 0);
+#endif
 		rc = cam_sensor_power_down(s_ctrl);
 		if (rc < 0) {
 			CAM_ERR(CAM_SENSOR, "Sensor Power Down failed");
@@ -1234,7 +1350,7 @@ int cam_sensor_power_up(struct cam_sensor_ctrl_t *s_ctrl)
 		CAM_ERR(CAM_SENSOR, "cci_init failed: rc: %d", rc);
 		goto cci_failure;
 	}
-
+	s_ctrl->thermal_info.status = -EINVAL;
 	return rc;
 cci_failure:
 	if (cam_sensor_util_power_down(power_info, soc_info))
@@ -1278,6 +1394,7 @@ int cam_sensor_power_down(struct cam_sensor_ctrl_t *s_ctrl)
 		}
 	}
 
+	s_ctrl->thermal_info.status = -ENODEV;
 	camera_io_release(&(s_ctrl->io_master_info));
 
 	return rc;

@@ -572,7 +572,7 @@ bool cam_res_mgr_util_check_if_gpio_is_shared(
 }
 EXPORT_SYMBOL(cam_res_mgr_util_check_if_gpio_is_shared);
 
-static void cam_res_mgr_gpio_free(struct device *dev, uint gpio)
+void cam_res_mgr_gpio_free(struct device *dev, uint gpio)
 {
 	bool                   gpio_found = false;
 	bool                   need_free = true;
@@ -647,6 +647,7 @@ static void cam_res_mgr_gpio_free(struct device *dev, uint gpio)
 
 	mutex_unlock(&cam_res->gpio_res_lock);
 }
+EXPORT_SYMBOL(cam_res_mgr_gpio_free);
 
 void cam_res_mgr_gpio_free_arry(struct device *dev,
 		const struct gpio *array, size_t num)

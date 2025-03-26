@@ -9,7 +9,7 @@
 #include "cam_sensor_util.h"
 #include "cam_mem_mgr.h"
 #include "cam_res_mgr_api.h"
-
+#include "../cam_sensor_extldo_wl2868c/wl2868c.h"
 #define CAM_SENSOR_PINCTRL_STATE_SLEEP "cam_suspend"
 #define CAM_SENSOR_PINCTRL_STATE_DEFAULT "cam_default"
 
@@ -75,11 +75,11 @@ int32_t cam_sensor_util_regulator_powerup(struct cam_hw_soc_info *soc_info)
 		if (IS_ERR_OR_NULL(soc_info->rgltr[i])) {
 			rc = PTR_ERR(soc_info->rgltr[i]);
 			rc = rc ? rc : -EINVAL;
-			CAM_ERR(CAM_SENSOR, "get failed for regulator %s %d",
+			CAM_ERR(CAM_ACTUATOR, "get failed for regulator %s %d",
 				 soc_info->rgltr_name[i], rc);
 			return rc;
 		}
-		CAM_DBG(CAM_SENSOR, "get for regulator %s",
+		CAM_DBG(CAM_ACTUATOR, "get for regulator %s",
 			soc_info->rgltr_name[i]);
 	}
 
@@ -196,6 +196,11 @@ int32_t cam_sensor_handle_random_write(
 {
 	struct i2c_settings_list  *i2c_list;
 	int32_t rc = 0, cnt, payload_count;
+	struct list_head  *i2c_list_head = &(i2c_reg_settings->list_head);
+
+	/* Null pointer judgment */
+	if(i2c_list_head->prev == NULL)
+		return -ENOMEM;
 
 	payload_count = cam_cmd_i2c_random_wr->header.count;
 	i2c_list = cam_sensor_get_i2c_ptr(i2c_reg_settings,
@@ -236,6 +241,11 @@ static int32_t cam_sensor_handle_continuous_write(
 {
 	struct i2c_settings_list *i2c_list;
 	int32_t rc = 0, cnt, payload_count;
+	struct list_head  *i2c_list_head = &(i2c_reg_settings->list_head);
+
+	/* Null pointer judgment */
+	if(i2c_list_head->prev == NULL)
+		return -ENOMEM;
 
 	payload_count = cam_cmd_i2c_continuous_wr->header.count;
 	i2c_list = cam_sensor_get_i2c_ptr(i2c_reg_settings,
@@ -1196,8 +1206,109 @@ int32_t msm_camera_fill_vreg_params(
 			if (j == num_vreg)
 				power_setting[i].seq_val = INVALID_VREG;
 			break;
-		default:
+#ifdef CONFIG_CAMERA_EXTLDO_WL2868C
+		case SENSOR_WL2868C_VDIG:
+			for (j = 0; j < num_vreg; j++) {
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vdig")) {
+
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2864c_vdig", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+					break;
+				}
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
 			break;
+
+		case SENSOR_WL2868C_VIO:
+			for (j = 0; j < num_vreg; j++) {
+
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vio")) {
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2864c_vio", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+					break;
+				}
+
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
+			break;
+
+		case SENSOR_WL2868C_VANA:
+			for (j = 0; j < num_vreg; j++) {
+
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vana")) {
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2868c_vana", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+					break;
+				}
+
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
+			break;
+
+		case SENSOR_WL2868C_VAF:
+			for (j = 0; j < num_vreg; j++) {
+
+				if (!strcmp(soc_info->rgltr_name[j],
+					"cam_wl2868c_vaf")) {
+					CAM_DBG(CAM_SENSOR,
+						"i: %d j: %d cam_wl2868c_vaf", i, j);
+					power_setting[i].seq_val = j;
+
+					if (VALIDATE_VOLTAGE(
+						soc_info->rgltr_min_volt[j],
+						soc_info->rgltr_max_volt[j],
+						power_setting[i].config_val)) {
+						soc_info->rgltr_min_volt[j] =
+						soc_info->rgltr_max_volt[j] =
+						power_setting[i].config_val;
+					}
+
+					break;
+				}
+
+			}
+			if (j == num_vreg)
+				power_setting[i].seq_val = INVALID_VREG;
+			break;
+#endif
+	default:
+		break;
 		}
 	}
 
@@ -1896,6 +2007,29 @@ int cam_sensor_util_init_gpio_pin_tbl(
 		rc = 0;
 	}
 
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	rc = of_property_read_u32(of_node, "gpio-ois", &val);
+	if (rc != -EINVAL) {
+		if (rc < 0) {
+			CAM_ERR(CAM_SENSOR,
+				"read gpio-ois failed rc %d", rc);
+			goto free_gpio_info;
+		} else if (val >= gpio_array_size) {
+			CAM_ERR(CAM_SENSOR, "gpio-ois invalid %d", val);
+			rc = -EINVAL;
+			goto free_gpio_info;
+		}
+		gpio_num_info->gpio_num[SENSOR_OIS] =
+			gconf->cam_gpio_common_tbl[val].gpio;
+		gpio_num_info->valid[SENSOR_OIS] = 1;
+
+		CAM_DBG(CAM_SENSOR, "gpio-ois %d",
+			gpio_num_info->gpio_num[SENSOR_OIS]);
+	} else {
+		rc = 0;
+	}
+#endif
+
 	return rc;
 
 free_gpio_info:
@@ -2147,6 +2281,9 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
 		case SENSOR_CUSTOM_GPIO2:
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		case SENSOR_OIS:
+#endif
 			if (no_gpio) {
 				CAM_ERR(CAM_SENSOR, "request gpio failed");
 				goto power_up_failed;
@@ -2232,6 +2369,40 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 				goto power_up_failed;
 			}
 			break;
+#ifdef CONFIG_CAMERA_EXTLDO_WL2868C
+		case SENSOR_WL2868C_VANA:
+		case SENSOR_WL2868C_VDIG:
+		case SENSOR_WL2868C_VIO:
+		case SENSOR_WL2868C_VAF:
+			if (power_setting->seq_val == INVALID_VREG)
+				break;
+
+			if (power_setting->seq_val >= CAM_VREG_MAX) {
+				CAM_ERR(CAM_SENSOR, "vreg index %d >= max %d",
+					power_setting->seq_val,
+					CAM_VREG_MAX);
+			}
+
+			if (power_setting->seq_val < num_vreg) {
+				vreg_idx = power_setting->seq_val;
+				CAM_DBG(CAM_SENSOR, "Enable External LDO WL2868C for sensor id:%d, usr_idx:%d, regulator name:%s",
+													soc_info->index, vreg_idx, soc_info->rgltr_name[vreg_idx]);
+				/*
+                if(((MAIN_CAMERA == soc_info->index) || (DEPTH_CAMERA == soc_info->index)) &&
+                   (SENSOR_WL2868C_VIO == power_setting->seq_type)){
+                    wl2868c_vio_flag += 1;
+                    if(wl2868c_vio_flag > BOKEH_MODE) {
+                        wl2868c_vio_flag = PHOTO_MODE;
+                    }
+                }
+                */
+				rc = wl2868c_set_ldo_enable(soc_info->index, power_setting->seq_type, soc_info->rgltr_min_volt[vreg_idx],
+													soc_info->rgltr_max_volt[vreg_idx]);
+				if(rc < 0)
+					CAM_ERR(CAM_SENSOR,"Error in Enable External LDO WL2868C");
+			}
+			break;
+#endif
 		default:
 			CAM_ERR(CAM_SENSOR, "error power seq type %d",
 				power_setting->seq_type);
@@ -2269,6 +2440,9 @@ power_up_failed:
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
 		case SENSOR_CUSTOM_GPIO2:
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		case SENSOR_OIS:
+#endif
 			if (!gpio_num_info)
 				continue;
 			if (!gpio_num_info->valid
@@ -2428,6 +2602,9 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 		case SENSOR_STANDBY:
 		case SENSOR_CUSTOM_GPIO1:
 		case SENSOR_CUSTOM_GPIO2:
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+		case SENSOR_OIS:
+#endif
 
 			if (!gpio_num_info) {
 				CAM_ERR(CAM_SENSOR, "failed: No gpio");
@@ -2499,6 +2676,47 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 				CAM_ERR(CAM_SENSOR,
 					"Error disabling VREG GPIO");
 			break;
+#ifdef CONFIG_CAMERA_EXTLDO_WL2868C
+		case SENSOR_WL2868C_VANA:
+		case SENSOR_WL2868C_VDIG:
+		case SENSOR_WL2868C_VIO:
+		case SENSOR_WL2868C_VAF:
+			if (pd->seq_val == INVALID_VREG)
+				break;
+
+			ps = msm_camera_get_power_settings(
+				ctrl, pd->seq_type,
+				pd->seq_val);
+			if (ps) {
+				if (pd->seq_val < num_vreg) {
+					CAM_DBG(CAM_SENSOR, "Disable External LDO WL2868C for sensor id:%d, usr_idx:%d, regulator name:%s",
+														soc_info->index, pd->seq_val, soc_info->rgltr_name[pd->seq_val]);
+					/*
+                    if(((MAIN_CAMERA == soc_info->index) || (DEPTH_CAMERA == soc_info->index)) &&
+                        (SENSOR_WL2868C_VIO == pd->seq_type)){
+                        switch(wl2868c_vio_flag)
+                        {
+                            case PHOTO_MODE:
+                                wl2868c_vio_flag = CLOSE_MODE;
+                                ret = wl2868c_set_ldo_disable(soc_info->index, pd->seq_type);
+                                if(ret < 0)
+                                   CAM_ERR(CAM_SENSOR,"Error in Disable External LDO WL2868C");
+                                break;
+
+                            case BOKEH_MODE:
+                                wl2868c_vio_flag = PHOTO_MODE;
+                                break;
+                        }
+                    }
+                    */
+                    ret = wl2868c_set_ldo_disable(soc_info->index, pd->seq_type);
+                    if(ret < 0)
+                    CAM_ERR(CAM_SENSOR,"Error in Disable External LDO WL2868C");
+				}
+			}
+			break;
+#endif
+
 		default:
 			CAM_ERR(CAM_SENSOR, "error power seq type %d",
 				pd->seq_type);
