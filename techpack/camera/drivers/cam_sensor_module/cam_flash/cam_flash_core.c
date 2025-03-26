@@ -12,9 +12,25 @@
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
 #include <linux/math64.h>
+#include "cam_sensor_util.h"
+#include "../cam_flash_pm6125_gpio/pm6125_flash_gpio.h"
 
 static uint default_on_timer = 2;
 module_param(default_on_timer, uint, 0644);
+
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+/* For SM5038 Flash LED */
+enum sm5038_fled_mode {
+	SM5038_FLED_MODE_OFF = 1,
+	SM5038_FLED_MODE_MAIN_FLASH,
+	SM5038_FLED_MODE_TORCH_FLASH,
+	SM5038_FLED_MODE_PREPARE_FLASH,
+	SM5038_FLED_MODE_CLOSE_FLASH,
+	SM5038_FLED_MODE_PRE_FLASH,
+};
+
+extern int32_t sm5038_fled_mode_ctrl(int state, uint32_t brightness);
+#endif
 
 int cam_flash_led_prepare(struct led_trigger *trigger, int options,
 	int *max_current, bool is_wled)
@@ -461,7 +477,8 @@ static int cam_flash_ops(struct cam_flash_ctrl *flash_ctrl,
 int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 {
 	int rc = 0;
-
+	struct cam_hw_soc_info  soc_info = flash_ctrl->soc_info;
+	struct cam_flash_private_soc *soc_private = (struct cam_flash_private_soc *)soc_info.soc_private;
 	if (!flash_ctrl) {
 		CAM_ERR(CAM_FLASH, "Flash control Null");
 		return -EINVAL;
@@ -480,6 +497,19 @@ int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 			"cannot apply streamoff settings");
 		}
 	}
+#ifdef CONFIG_CAMERA_FLASH_PWM
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	sm5038_fled_mode_ctrl(SM5038_FLED_MODE_OFF, 0);
+	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 0);
+	cam_res_mgr_gpio_free(soc_info.dev, soc_private->flash_gpio_enable);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_SUSPEND, 500000, 100);
+	sm5038_fled_mode_ctrl(SM5038_FLED_MODE_CLOSE_FLASH, 0);
+#else
+	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 0);
+	cam_res_mgr_gpio_free(soc_info.dev, soc_private->flash_gpio_enable);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_SUSPEND, 10000 , 100);
+#endif
+#endif
 	return 0;
 }
 
@@ -488,6 +518,8 @@ static int cam_flash_low(
 	struct cam_flash_frame_setting *flash_data)
 {
 	int i = 0, rc = 0;
+	struct cam_hw_soc_info  soc_info = flash_ctrl->soc_info;
+	struct cam_flash_private_soc *soc_private = (struct cam_flash_private_soc *)soc_info.soc_private;
 
 	if (!flash_data) {
 		CAM_ERR(CAM_FLASH, "Flash Data Null");
@@ -504,7 +536,32 @@ static int cam_flash_low(
 		CAMERA_SENSOR_FLASH_OP_FIRELOW);
 	if (rc)
 		CAM_ERR(CAM_FLASH, "Fire Torch failed: %d", rc);
+#ifdef CONFIG_CAMERA_FLASH_PWM
+	CAM_DBG(CAM_FLASH, "Flash low Triggered");
+	rc = cam_res_mgr_gpio_request(soc_info.dev, soc_private->flash_gpio_enable, 0, "CUSTOM_GPIO1");
+	if(rc) {
+		CAM_ERR(CAM_FLASH, "gpio %d request fails", soc_private->flash_gpio_enable);
+		return rc;
+	}
 
+	CAM_DBG(CAM_FLASH, "Flash pm6125 open torch or pre-flash, torch current is %d, video/pre-flash current is %d",
+				flash_ctrl->nrt_info.led_current_ma[0], flash_data->led_current_ma[0]);
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	sm5038_fled_mode_ctrl(SM5038_FLED_MODE_PREPARE_FLASH, 0);
+	sm5038_fled_mode_ctrl(SM5038_FLED_MODE_TORCH_FLASH, flash_data->led_current_ma[0]);
+	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 0);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, 500000, 100);
+#else
+	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 0);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, 100, 100);
+	mdelay(6);
+	if (flash_data->led_current_ma[0] == 47) {
+		pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, 10000, 47);
+	} else {
+		pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, 10000, 100);
+	}
+#endif
+#endif
 	return rc;
 }
 
@@ -513,6 +570,8 @@ static int cam_flash_high(
 	struct cam_flash_frame_setting *flash_data)
 {
 	int i = 0, rc = 0;
+	struct cam_hw_soc_info  soc_info = flash_ctrl->soc_info;
+	struct cam_flash_private_soc *soc_private = (struct cam_flash_private_soc *)soc_info.soc_private;
 
 	if (!flash_data) {
 		CAM_ERR(CAM_FLASH, "Flash Data Null");
@@ -529,7 +588,25 @@ static int cam_flash_high(
 		CAMERA_SENSOR_FLASH_OP_FIREHIGH);
 	if (rc)
 		CAM_ERR(CAM_FLASH, "Fire Flash Failed: %d", rc);
+#ifdef CONFIG_CAMERA_FLASH_PWM
+	CAM_DBG(CAM_FLASH, "Flash high Triggered");
+	rc = cam_res_mgr_gpio_request(soc_info.dev, soc_private->flash_gpio_enable, 0, "CUSTOM_GPIO1");
+	if(rc) {
+		CAM_ERR(CAM_FLASH, "gpio %d request fails", soc_private->flash_gpio_enable);
+		return rc;
+	}
 
+	CAM_DBG(CAM_FLASH, "Flash pm6125 open flash, flash current is %d", flash_data->led_current_ma[0]);
+#if defined(CONFIG_ARCH_SONY_MURRAY)
+	sm5038_fled_mode_ctrl(SM5038_FLED_MODE_PREPARE_FLASH, 0);
+	sm5038_fled_mode_ctrl(SM5038_FLED_MODE_MAIN_FLASH, flash_data->led_current_ma[0]);
+	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 1);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_SUSPEND, 500000, 100);
+#else
+	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 1);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, 10000, 100);
+#endif
+#endif
 	return rc;
 }
 

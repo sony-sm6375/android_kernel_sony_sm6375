@@ -12,6 +12,8 @@ endif
 ccflags-y += -I$(srctree)/techpack/camera/include/uapi/camera
 ccflags-y += -I$(srctree)
 
+ccflags-y += -Wframe-larger-than=20688
+
 camera-y := \
 	cam_req_mgr/cam_req_mgr_core.o \
 	cam_req_mgr/cam_req_mgr_dev.o \
@@ -44,7 +46,8 @@ camera-y := \
 	cam_cdm/cam_cdm_intf.o \
 	cam_cdm/cam_cdm_core_common.o \
 	cam_cdm/cam_cdm_virtual_core.o \
-	cam_cdm/cam_cdm_hw_core.o
+	cam_cdm/cam_cdm_hw_core.o \
+	cam_sensor_module/cam_flash_pm6125_gpio/pm6125_flash_gpio.o
 
 ifneq (,$(filter $(CONFIG_QCOM_CX_IPEAK),y m))
 camera-y += cam_utils/cam_cx_ipeak.o
@@ -170,7 +173,18 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	cam_sensor_module/cam_sensor_io/cam_sensor_qup_i2c.o \
 	cam_sensor_module/cam_sensor_io/cam_sensor_spi.o \
 	cam_sensor_module/cam_sensor_utils/cam_sensor_util.o \
-	cam_sensor_module/cam_res_mgr/cam_res_mgr.o
+	cam_sensor_module/cam_res_mgr/cam_res_mgr.o \
+	cam_sensor_module/cam_sensor_extldo_wl2868c/wl2868c.o
+
+ifeq ($(CONFIG_ARCH_SONY_ZAMBEZI),y)
+camera-$(CONFIG_SPECTRA_SENSOR) += \
+	cam_sensor_module/cam_ois_dw9784/dw9784_ois.o
+endif
+
+ifeq ($(CONFIG_ARCH_SONY_MURRAY),y)
+camera-$(CONFIG_SPECTRA_SENSOR) += \
+	cam_sensor_module/cam_ois_dw9781/dw9781_ois.o
+endif
 
 camera-$(CONFIG_LEDS_QPNP_FLASH_V2) += \
 	cam_sensor_module/cam_flash/cam_flash_dev.o \
