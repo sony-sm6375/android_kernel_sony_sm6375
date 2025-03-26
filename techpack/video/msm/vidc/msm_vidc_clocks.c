@@ -340,6 +340,10 @@ int msm_comm_set_buses(struct msm_vidc_core *core, u32 sid)
 			total_bw_ddr = total_bw_llcc = INT_MAX;
 			break;
 		}
+		if (inst->flags & VIDC_SECURE) {
+			total_bw_ddr = total_bw_llcc = 3336667;
+			break;
+		}
 		total_bw_ddr += inst->bus_data.calc_bw_ddr;
 		total_bw_llcc += inst->bus_data.calc_bw_llcc;
 	}
