@@ -996,6 +996,17 @@ struct audproc_enable_param_t {
 	uint32_t                  enable;
 };
 
+#define AUDPROC_MODULE_ID_RAMP_UP_CLIPPER_1      0x10101100
+#define AUDPROC_PARAM_ID_RAMP_UP_CLIPPER_ENABLE  0x10101001
+
+struct audproc_enable_rampup_clipper_module {
+	uint32_t	num_channels;
+	uint32_t	clipper_enable_left;
+	uint32_t	clipper_enable_right;
+	uint32_t	gain_fade_in_enable_left;
+	uint32_t	gain_fade_in_enable_right;
+} __packed;
+
 /*
  * Allows a client to control the gains on various session-to-COPP paths.
  */

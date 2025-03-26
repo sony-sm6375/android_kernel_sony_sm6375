@@ -134,6 +134,7 @@ static int num_app_cfg_types;
 static int msm_ec_ref_port_id;
 static int afe_loopback_tx_port_index;
 static int afe_loopback_tx_port_id = -1;
+static uint32_t clipper_1_enable = 0;
 static struct msm_pcm_channel_mixer ec_ref_chmix_cfg[MSM_FRONTEND_DAI_MAX];
 static struct msm_ec_ref_port_cfg ec_ref_port_cfg;
 
@@ -598,7 +599,7 @@ static void msm_pcm_routng_cfg_matrix_map_pp(struct route_payload payload,
 	int itr = 0, rc = 0;
 
 	if ((path_type == ADM_PATH_PLAYBACK) &&
-	    (perf_mode == LEGACY_PCM_MODE) &&
+	    ((perf_mode == LEGACY_PCM_MODE) || (perf_mode == LOW_LATENCY_PCM_MODE)) &&
 	    is_custom_stereo_on) {
 		for (itr = 0; itr < payload.num_copps; itr++) {
 			if ((payload.port_id[itr] != SLIMBUS_0_RX) &&
@@ -33282,6 +33283,12 @@ static const char * const mi2s_rx_vi_fb_tx_mux_text[] = {
 	"ZERO", "SENARY_TX"
 };
 
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+static const char * const sec_mi2s_rx_vi_fb_tx_mux_text[] = {
+	"ZERO", "SEC_MI2S_TX"
+};
+#endif
+
 static const char * const int4_mi2s_rx_vi_fb_tx_mono_mux_text[] = {
 	"ZERO", "INT5_MI2S_TX"
 };
@@ -33318,6 +33325,12 @@ static const int wsa_rx_0_vi_fb_tx_rch_value[] = {
 static const int mi2s_rx_vi_fb_tx_value[] = {
 	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_SENARY_MI2S_TX
 };
+
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+static const int sec_mi2s_rx_vi_fb_tx_value[] = {
+	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_SECONDARY_MI2S_TX
+};
+#endif
 
 static const int int4_mi2s_rx_vi_fb_tx_mono_ch_value[] = {
 	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_INT5_MI2S_TX
@@ -33361,6 +33374,13 @@ static const struct soc_enum mi2s_rx_vi_fb_mux_enum =
 	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_PRI_MI2S_RX, 0, 0,
 	ARRAY_SIZE(mi2s_rx_vi_fb_tx_mux_text),
 	mi2s_rx_vi_fb_tx_mux_text, mi2s_rx_vi_fb_tx_value);
+
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+static const struct soc_enum sec_mi2s_rx_vi_fb_mux_enum =
+	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_SECONDARY_MI2S_RX, 0, 0,
+	ARRAY_SIZE(sec_mi2s_rx_vi_fb_tx_mux_text),
+	sec_mi2s_rx_vi_fb_tx_mux_text, sec_mi2s_rx_vi_fb_tx_value);
+#endif
 
 static const struct soc_enum int4_mi2s_rx_vi_fb_mono_ch_mux_enum =
 	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_INT4_MI2S_RX, 0, 0,
@@ -33418,6 +33438,84 @@ static const struct snd_kcontrol_new int4_mi2s_rx_vi_fb_stereo_ch_mux =
 	SOC_DAPM_ENUM_EXT("INT4_MI2S_RX_VI_FB_STEREO_CH_MUX",
 	int4_mi2s_rx_vi_fb_stereo_ch_mux_enum, spkr_prot_get_vi_rch_port,
 	spkr_prot_put_vi_rch_port);
+
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+static const struct snd_kcontrol_new sec_mi2s_rx_vi_fb_mux =
+	SOC_DAPM_ENUM_EXT("SEC_MI2S_RX_VI_FB_MUX",
+	sec_mi2s_rx_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
+	spkr_prot_put_vi_lch_port);
+#endif
+static int msm_adm_clipper_1_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = clipper_1_enable;
+	pr_debug("%s: state of clipper 1: %ld\n" , __func__,
+				ucontrol->value.integer.value[0]);
+	return 0;
+}
+
+static int msm_adm_clipper_1_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	int i, app_type, be_id, fe_id;
+	unsigned long copp;
+	int ret = 0;
+	int ret2 = 0;
+	int port_id = 0;
+	struct msm_pcm_routing_bdai_data *bedai;
+
+	clipper_1_enable = (uint32_t)ucontrol->value.integer.value[0];
+	app_type = ucontrol->value.integer.value[1];
+
+	if ((clipper_1_enable < 0) || (clipper_1_enable > 1)) {
+		pr_err("%s: Invalid values. clipper module status:%d", __func__,
+			clipper_1_enable);
+		return -EINVAL;
+	}
+
+	mutex_lock(&routing_lock);
+	for (be_id = 0; be_id < MSM_BACKEND_DAI_MAX; be_id++) {
+		if (!msm_bedais[be_id].active)
+			continue;
+
+		bedai = &msm_bedais[be_id];
+		pr_debug("%s: be_id=%d, bedai->fe_sessions=%#x\n", __func__,
+			be_id, (int)bedai->fe_sessions[0]);
+
+		port_id = msm_bedais[be_id].port_id;
+
+		for (fe_id = 0; fe_id < MSM_FRONTEND_DAI_MAX; fe_id++) {
+			if (!test_bit(fe_id, &bedai->fe_sessions[0]))
+				continue;
+
+			if (app_type != fe_dai_app_type_cfg[fe_id][SESSION_TYPE_RX][be_id].app_type)
+				continue;
+
+			copp = session_copp_map[fe_id][SESSION_TYPE_RX][be_id];
+			for (i = 0; i < MAX_COPPS_PER_PORT; i++) {
+				if (!test_bit(i, &copp))
+					continue;
+
+				ret2 = adm_set_rampup_clipper(port_id, i,
+						clipper_1_enable, AUDPROC_MODULE_ID_RAMP_UP_CLIPPER_1);
+				if (ret2 < 0) {
+					pr_err("%s Failed to change state of clipper module %d\n",
+						__func__, ret2);
+				}
+
+				ret |= ret2;
+			}
+		}
+	}
+	mutex_unlock(&routing_lock);
+	return ret ? -EINVAL : 0;
+}
+
+static struct snd_kcontrol_new msm_adm_clipper_control_1[] = {
+	SOC_SINGLE_MULTI_EXT("Fade In", SND_SOC_NOPM, 0,
+	1, 0, 2, msm_adm_clipper_1_get,
+	msm_adm_clipper_1_put),
+};
 
 static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	/* Frontend AIF */
@@ -34011,6 +34109,10 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 				&slim0_rx_vi_fb_lch_mux),
 	SND_SOC_DAPM_MUX("SLIM0_RX_VI_FB_RCH_MUX", SND_SOC_NOPM, 0, 0,
 				&slim0_rx_vi_fb_rch_mux),
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+	SND_SOC_DAPM_MUX("SEC_MI2S_RX_VI_FB_MUX", SND_SOC_NOPM, 0, 0,
+				&sec_mi2s_rx_vi_fb_mux),
+#endif
 	SND_SOC_DAPM_MUX("WSA_RX_0_VI_FB_LCH_MUX", SND_SOC_NOPM, 0, 0,
 				&wsa_rx_0_vi_fb_lch_mux),
 	SND_SOC_DAPM_MUX("WSA_RX_0_VI_FB_RCH_MUX", SND_SOC_NOPM, 0, 0,
@@ -37179,6 +37281,10 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"RX_CDC_DMA_RX_1", NULL, "CDC_DMA_RX_1_VI_FB_MUX"},
 	{"SLIMBUS_0_RX", NULL, "SLIM0_RX_VI_FB_LCH_MUX"},
 	{"SLIMBUS_0_RX", NULL, "SLIM0_RX_VI_FB_RCH_MUX"},
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+	{"SEC_MI2S_RX_VI_FB_MUX", "SEC_MI2S_TX", "SEC_MI2S_TX"},
+	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX_VI_FB_MUX"},
+#endif
 	{"WSA_CDC_DMA_RX_0", NULL, "WSA_RX_0_VI_FB_LCH_MUX"},
 	{"WSA_CDC_DMA_RX_0", NULL, "WSA_RX_0_VI_FB_RCH_MUX"},
 	{"AFE_LOOPBACK_TX", NULL, "BE_IN"},
@@ -41908,7 +42014,7 @@ static const struct snd_soc_dapm_route intercon_mi2s[] = {
 	{"INT4_MI2S_RX", NULL, "INT4_MI2S_RX_DL_HL"},
 	{"PRI_MI2S_RX_DL_HL", "Switch", "PRI_MI2S_DL_HL"},
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_DL_HL"},
-	{"SEC_MI2S_RX_DL_HL", "Switch", "SEC_MI2S_DL_HL"},
+	{"SEC_MI2S_RX_DL_HL", "Switch", "CDC_DMA_DL_HL"},
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX_DL_HL"},
 	{"TERT_MI2S_RX_DL_HL", "Switch", "TERT_MI2S_DL_HL"},
 	{"TERT_MI2S_RX", NULL, "TERT_MI2S_RX_DL_HL"},
@@ -43893,6 +43999,9 @@ static int msm_routing_probe(struct snd_soc_component *component)
 	snd_soc_add_component_controls(component, internal_mclk_control,
 				      ARRAY_SIZE(internal_mclk_control));
 #endif
+
+	snd_soc_add_component_controls(component, msm_adm_clipper_control_1,
+				ARRAY_SIZE(msm_adm_clipper_control_1));
 	return 0;
 }
 
